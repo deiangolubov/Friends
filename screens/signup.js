@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, Button, Image, StyleSheet, TextInput, TouchableOpacity, StatusBar, Alert} from 'react-native';
+import { View, Text, Image, StyleSheet, TextInput, TouchableOpacity, StatusBar, Alert} from 'react-native';
 import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+
 import logo from '../img/logo.png'
 
 function Signup({ navigation }) {
@@ -15,14 +17,50 @@ function Signup({ navigation }) {
     };
   
     const handleSignUp = async () => {
-      auth()
-      .createUserWithEmailAndPassword(email, password)
-      .then(() => {
-        console.log('User account created & signed in!');
-      })
-      .catch(error => {
-        console.error(error);
-      });
+      if (!email.includes('@')) {
+        Alert.alert('Invalid Email', 'Please enter a valid email address.');
+        return;
+      }
+
+      if(password.length < 4) {
+        Alert.alert('Password must be at least 4 characters.')
+        return;
+      }
+
+      if(phone.length < 2){ //this is for testing -> for production if(!/^\d{10,}$/.test(phone)) this test that it has 10 only digits
+        Alert.alert('Please enter a valid phone number.') 
+        return;
+      }
+      
+      try {
+        const usernameExists = await firestore()
+          .collection('users')
+          .where('username', '==', username)
+          .get();
+
+        if (!usernameExists.empty) {
+          Alert.alert('Username already exists', 'Please choose a different username.');
+          return;
+        }
+
+        const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+
+        await firestore().collection('users').doc(user.uid).set({
+          username: username,
+          email: email,
+          phone: phone,
+        });
+    
+        console.log('User account created & signed in:', user.uid);
+      } catch (error) {
+        if(error.code === 'auth/email-already-in-use') {
+          Alert.alert('Email already in use', 'Please use a different email address.');
+        } else {
+          console.error(error);
+          Alert.alert('Signup failed', 'An error occurred during signup.');
+        }
+      }
     }
   
   
