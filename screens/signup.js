@@ -22,8 +22,8 @@ function Signup({ navigation }) {
         return;
       }
 
-      if(password.length < 4) {
-        Alert.alert('Password must be at least 4 characters.')
+      if(password.length < 6) {
+        Alert.alert('Password must be at least 6 characters.')
         return;
       }
 
