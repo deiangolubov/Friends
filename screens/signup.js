@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Button, Image, StyleSheet, TextInput, TouchableOpacity, StatusBar, Alert} from 'react-native';
+import auth from '@react-native-firebase/auth';
 import logo from '../img/logo.png'
 
 function Signup({ navigation }) {
@@ -14,7 +15,14 @@ function Signup({ navigation }) {
     };
   
     const handleSignUp = async () => {
-      console.log("the signup")
+      auth()
+      .createUserWithEmailAndPassword(email, password)
+      .then(() => {
+        console.log('User account created & signed in!');
+      })
+      .catch(error => {
+        console.error(error);
+      });
     }
   
   

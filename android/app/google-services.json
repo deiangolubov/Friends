@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "260533690818",
+    "project_id": "friends-ab4a6",
+    "storage_bucket": "friends-ab4a6.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:260533690818:android:4a2f7493d93ee4bd5df65b",
+        "android_client_info": {
+          "package_name": "com.friends"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARlQJWjvnqIu-fiehTbET6wohwOPTHKbc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
