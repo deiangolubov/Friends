@@ -2,12 +2,16 @@ import React , { useState , useEffect } from 'react';
 import { View, Text, Button , Image, StyleSheet, TextInput, TouchableOpacity, StatusBar } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
-import defaultPfp from '../img/defaultpfp.png'
+import storage from '@react-native-firebase/storage';
+import * as ImagePicker from 'react-native-image-picker';
+
+import defaultPfp from '../img/defaultpfp-overlay.png'
 
 function ProfileSetup({ navigation }) {
     const [user, setUser] = useState(null);
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
+    const [profileImage, setProfileImage] = useState(null);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -33,7 +37,43 @@ function ProfileSetup({ navigation }) {
     };
 
     const handleImageUpload = () => {
-        console.log("image upload")
+        const options = {
+            title: 'Select Profile Image',
+            storageOptions: {
+                skipBackup: true,
+                path: 'images',
+            },
+        };
+
+        ImagePicker.launchImageLibrary(options, response => {
+            if (response.didCancel) {
+                console.log('User cancelled image picker');
+            } else if (response.error) {
+                console.log('ImagePicker Error: ', response.error);
+            } else if (response.customButton) {
+                console.log('User tapped custom button: ', response.customButton);
+            } else {
+                const source = { uri: response.uri };
+                setProfileImage(source);
+                uploadImage(response.uri);
+            }
+        });
+    };
+
+    const uploadImage = async (uri) => {
+        const filename = uri.substring(uri.lastIndexOf('/') + 1);
+        const uploadUri = Platform.OS === 'ios' ? uri.replace('file://', '') : uri;
+
+        const task = storage()
+            .ref(filename)
+            .putFile(uploadUri);
+
+        try {
+            await task;
+            console.log('Image uploaded to storage');
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     return (
@@ -42,7 +82,11 @@ function ProfileSetup({ navigation }) {
       <Text style={styles.loginText}>Setup your profile</Text>
         <View style={styles.formContainer}>
         <TouchableOpacity onPress={handleImageUpload}>
-            <Image source={defaultPfp} style={styles.profileImage} />
+            {profileImage ? (
+                <Image source={profileImage} style={styles.profileImage} />
+                    ) : (
+                <Image source={defaultPfp} style={styles.profileImage} />
+                )}
         </TouchableOpacity>
         <Text style={styles.label}>Name: {name}</Text>
         <TextInput
@@ -126,8 +170,8 @@ function ProfileSetup({ navigation }) {
       textDecorationLine: 'underline',
     },
     profileImage: {
-        width: 140,
-        height: 140,
+        width: 120,
+        height: 120,
         borderRadius: 100,
         marginBottom: 20,
     },
