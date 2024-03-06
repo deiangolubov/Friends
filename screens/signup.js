@@ -51,7 +51,10 @@ function Signup({ navigation }) {
           email: email,
           phone: phone,
         });
-    
+        
+        await auth().signInWithEmailAndPassword(email, password);
+        navigation.navigate('ProfileSetup')
+
         console.log('User account created & signed in:', user.uid);
       } catch (error) {
         if(error.code === 'auth/email-already-in-use') {
