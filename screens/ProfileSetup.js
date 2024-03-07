@@ -12,6 +12,7 @@ function ProfileSetup({ navigation }) {
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
     const [profileImage, setProfileImage] = useState(null);
+    const [isSetUpComplete, setIsSetUpComplete] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -40,21 +41,16 @@ function ProfileSetup({ navigation }) {
         ImagePicker.launchImageLibrary({}, async response => {
             console.log(response);
             if (response.assets && response.assets.length > 0) {
-                const selectedImage = response.assets[0]; // Assuming only one image is selected
+                const selectedImage = response.assets[0];
                 try {
-                    // Create a reference to the location in Firebase Storage
                     const imageRef = storage().ref(`profile_images/${user.uid}`);
     
-                    // Upload the image to Firebase Storage
                     await imageRef.putFile(selectedImage.uri);
     
-                    // Get the download URL of the uploaded image
                     const imageUrl = await imageRef.getDownloadURL();
     
-                    // Update the profileImage state with the downloaded URL
                     setProfileImage({ uri: imageUrl });
-    
-                    // Update the user's profile image in Firestore
+   
                     await firestore().collection('users').doc(user.uid).update({
                         profileImage: imageUrl
                     });
@@ -70,24 +66,46 @@ function ProfileSetup({ navigation }) {
         
     }
 
+    const handleContinue = async () => {
+        if(bio) {
+            await firestore().collection('users').doc(user.uid).update({
+                bio: bio
+            });
+        }
+
+        setIsSetUpComplete(true);
+        setTimeout(() => {
+            navigation.navigate('Home'); 
+        }, 2000);
+    }
+
     return (
         <View style={styles.bigcontainer}>
-            <Text style={styles.loginText}>Setup your profile</Text>
-            <View style={styles.formContainer}>
-                <TouchableOpacity onPress={handleImageUpload}>
-                    {profileImage ? (
-                        <Image source={{ uri: profileImage.uri }} style={styles.profileImage} />
-                    ) : (
-                        <Image source={defaultPfp} style={styles.profileImage} />
-                    )}
-                </TouchableOpacity>
-                <Text style={styles.label}>Name: {name}</Text>
-                <TextInput
-                    style={styles.input}
-                    onChangeText={text => setBio(text)}
-                    value={bio}
-                    placeholder="Enter your bio" />
-            </View>
+            {isSetUpComplete && (
+                <View style={styles.setupContainer}>
+                    <Text style={styles.setupText}>You're all set up!</Text>
+                </View>
+            )} 
+            {!isSetUpComplete && (
+            <><Text style={styles.loginText}>Setup your profile</Text><View style={styles.formContainer}>
+                    <TouchableOpacity onPress={handleImageUpload}>
+                        {profileImage ? (
+                            <Image source={{ uri: profileImage.uri }} style={styles.profileImage} />
+                        ) : (
+                            <Image source={defaultPfp} style={styles.profileImage} />
+                        )}
+                    </TouchableOpacity>
+                    <Text style={styles.label}>Name: {name}</Text>
+                    <TextInput
+                        style={styles.input}
+                        onChangeText={text => setBio(text)}
+                        value={bio}
+                        placeholder="Enter your bio" />
+                    <TouchableOpacity style={styles.loginButton} onPress={handleContinue}>
+                        <Text style={styles.buttonText}>CONTINUE</Text>
+                    </TouchableOpacity>
+                </View></>
+            )}
         </View>
     );
 }
@@ -143,17 +161,18 @@ function ProfileSetup({ navigation }) {
         fontSize: 15,
     },
     loginButton: {
-      backgroundColor: '#000000',
+      backgroundColor: '#B1EEDB',
       padding: 10,
       alignItems: 'center',
       borderRadius: 20,
       borderColor: '#B1EEDB',
       borderWidth: 2,
-      top: 20,
+      top: 200,
       marginTop: 15,
     },
     buttonText: {
       color: 'white',
+      fontSize: 15
     },
     forgotPasswordText: {
       color: '#B1EEDB',
@@ -172,6 +191,15 @@ function ProfileSetup({ navigation }) {
         alignSelf: 'flex-start',
         marginBottom: 5,
         fontSize: 20,
+    },
+    setupContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 1,
+    },
+    setupText: {
+        fontSize: 24,
+        color: 'white',
     },
   });
 
