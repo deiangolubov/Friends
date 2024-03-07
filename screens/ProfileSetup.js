@@ -37,68 +37,60 @@ function ProfileSetup({ navigation }) {
     };
 
     const handleImageUpload = () => {
-        const options = {
-            title: 'Select Profile Image',
-            storageOptions: {
-                skipBackup: true,
-                path: 'images',
-            },
-        };
-
-        ImagePicker.launchImageLibrary(options, response => {
-            if (response.didCancel) {
-                console.log('User cancelled image picker');
-            } else if (response.error) {
-                console.log('ImagePicker Error: ', response.error);
-            } else if (response.customButton) {
-                console.log('User tapped custom button: ', response.customButton);
+        ImagePicker.launchImageLibrary({}, async response => {
+            console.log(response);
+            if (response.assets && response.assets.length > 0) {
+                const selectedImage = response.assets[0]; // Assuming only one image is selected
+                try {
+                    // Create a reference to the location in Firebase Storage
+                    const imageRef = storage().ref(`profile_images/${user.uid}`);
+    
+                    // Upload the image to Firebase Storage
+                    await imageRef.putFile(selectedImage.uri);
+    
+                    // Get the download URL of the uploaded image
+                    const imageUrl = await imageRef.getDownloadURL();
+    
+                    // Update the profileImage state with the downloaded URL
+                    setProfileImage({ uri: imageUrl });
+    
+                    // Update the user's profile image in Firestore
+                    await firestore().collection('users').doc(user.uid).update({
+                        profileImage: imageUrl
+                    });
+    
+                    console.log('Profile image uploaded successfully.');
+                } catch (error) {
+                    console.error('Error uploading profile image:', error);
+                }
             } else {
-                const source = { uri: response.uri };
-                setProfileImage(source);
-                uploadImage(response.uri);
+                console.log('No image selected.');
             }
         });
-    };
-
-    const uploadImage = async (uri) => {
-        const filename = uri.substring(uri.lastIndexOf('/') + 1);
-        const uploadUri = Platform.OS === 'ios' ? uri.replace('file://', '') : uri;
-
-        const task = storage()
-            .ref(filename)
-            .putFile(uploadUri);
-
-        try {
-            await task;
-            console.log('Image uploaded to storage');
-        } catch (e) {
-            console.error(e);
-        }
-    };
+        
+    }
 
     return (
-      <>
-      <View style={styles.bigcontainer}>
-      <Text style={styles.loginText}>Setup your profile</Text>
-        <View style={styles.formContainer}>
-        <TouchableOpacity onPress={handleImageUpload}>
-            {profileImage ? (
-                <Image source={profileImage} style={styles.profileImage} />
+        <View style={styles.bigcontainer}>
+            <Text style={styles.loginText}>Setup your profile</Text>
+            <View style={styles.formContainer}>
+                <TouchableOpacity onPress={handleImageUpload}>
+                    {profileImage ? (
+                        <Image source={{ uri: profileImage.uri }} style={styles.profileImage} />
                     ) : (
-                <Image source={defaultPfp} style={styles.profileImage} />
-                )}
-        </TouchableOpacity>
-        <Text style={styles.label}>Name: {name}</Text>
-        <TextInput
-            style={styles.input}
-            onChangeText={text => setBio(text)}
-            value={bio}
-            placeholder="Enter your bio"/>
+                        <Image source={defaultPfp} style={styles.profileImage} />
+                    )}
+                </TouchableOpacity>
+                <Text style={styles.label}>Name: {name}</Text>
+                <TextInput
+                    style={styles.input}
+                    onChangeText={text => setBio(text)}
+                    value={bio}
+                    placeholder="Enter your bio" />
+            </View>
         </View>
-        </View>
-      </>
     );
-  }
+}
   
   const styles = StyleSheet.create({
     logo: {
