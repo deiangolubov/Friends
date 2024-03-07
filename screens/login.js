@@ -1,20 +1,41 @@
 import React , { useState } from 'react';
-import { View, Text, Button , Image, StyleSheet, TextInput, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, Button , Image, StyleSheet, TextInput, TouchableOpacity, StatusBar, Alert} from 'react-native';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 
 import logo from '../img/logo.png'
 
 function Login({ navigation }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-  
-    const handleLogin = () => {
-      // Implement your login logic here
-      console.log('Username:', username);
-      console.log('Password:', password);
+
+    const handleSignUp = () => {
+      
+      navigation.navigate('Signup')
     };
   
-    const handleSignUp = () => {
-      navigation.navigate('Signup')
+    const handleLogin = async () => {
+      if(username.includes("@")) {
+        await auth().signInWithEmailAndPassword(email, password);
+        navigation.navigate('Home')
+      }
+      else {
+        const userSnapshot = await firestore()
+                .collection('users')
+                .where('username', '==', username)
+                .get();
+        
+        console.log(userSnapshot)
+        if (!userSnapshot.empty) {
+                const userData = userSnapshot.docs[0].data();
+                const userEmail = userData.email;
+                await auth().signInWithEmailAndPassword(userEmail, password);
+                navigation.navigate('Home')
+        }
+        else {
+          Alert.alert('User not found')
+        }
+      }
     }
   
     return (

@@ -111,13 +111,6 @@ function ProfileSetup({ navigation }) {
 }
   
   const styles = StyleSheet.create({
-    logo: {
-      width: '100%', 
-      height: 96, 
-      resizeMode: 'contain',
-      top: 0,
-      
-    },
     bigcontainer: {
       flex: 1,
       backgroundColor: 'black',
@@ -173,12 +166,6 @@ function ProfileSetup({ navigation }) {
     buttonText: {
       color: 'white',
       fontSize: 15
-    },
-    forgotPasswordText: {
-      color: '#B1EEDB',
-      marginTop: 50,
-      textAlign: 'center',
-      textDecorationLine: 'underline',
     },
     profileImage: {
         width: 120,

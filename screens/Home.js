@@ -1,60 +1,46 @@
-import React , { useState } from 'react';
+import React , { useState, useEffect } from 'react';
 import { View, Text, Button , Image, StyleSheet, TextInput, TouchableOpacity, StatusBar } from 'react-native';
-
-import logo from '../img/logo.png'
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+import storage from '@react-native-firebase/storage';
+import * as ImagePicker from 'react-native-image-picker';
 
 function Home({ navigation }) {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-  
-    const handleLogin = () => {
-      // Implement your login logic here
-      console.log('Username:', username);
-      console.log('Password:', password);
+    const [user, setUser] = useState(null);
+    const [name, setName] = useState('');
+    const [bio, setBio] = useState('');
+    const [profileImage, setProfileImage] = useState(null);
+    const [isSetUpComplete, setIsSetUpComplete] = useState(false);
+
+    useEffect(() => {
+        const unsubscribe = auth().onAuthStateChanged(user => {
+            setUser(user);
+            if (user) {
+                fetchUserData(user.uid);
+            }
+        });
+
+        return unsubscribe;
+    }, []);
+
+    const fetchUserData = async (uid) => {
+        try {
+            const userDoc = await firestore().collection('users').doc(uid).get();
+            const userData = userDoc.data();
+            if (userData) {
+                setName(userData.username);
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+        }
     };
   
-    const handleSignUp = () => {
-      navigation.navigate('Signup')
-    }
   
     return (
       <>
       <View style={styles.bigcontainer}>
-      <Image source={logo} style={styles.logo}/>
       <Text style={styles.loginText}>TO DO: HOME</Text>
-        <View style={styles.formContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Username or Email"
-            onChangeText={text => setUsername(text)}
-            value={username}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            onChangeText={text => setPassword(text)}
-            value={password}
-            secureTextEntry={true}
-          />
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.buttonText}>Log In</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.loginButton} onPress={handleSignUp}>
-            <Text style={styles.buttonText}>Sign Up</Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Text style={styles.forgotPasswordText}></Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Text style={styles.forgotPasswordText}></Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Text style={styles.forgotPasswordText}></Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('ForgottenPassword')}>
-            <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
-          </TouchableOpacity>
-        </View>
+      <Text style={styles.label}>Name: {name}</Text>
         </View>
       </>
     );
