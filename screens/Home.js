@@ -3,14 +3,15 @@ import { View, Text, Button , Image, StyleSheet, TextInput, TouchableOpacity, St
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
-import * as ImagePicker from 'react-native-image-picker';
+
+import homeImg from '../img/home.png'
+import searchImg from '../img/searchImg2.png'
+import defaultpfp from '../img/defaultpfp.png'
 
 function Home({ navigation }) {
     const [user, setUser] = useState(null);
     const [name, setName] = useState('');
-    const [bio, setBio] = useState('');
     const [profileImage, setProfileImage] = useState(null);
-    const [isSetUpComplete, setIsSetUpComplete] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -29,42 +30,51 @@ function Home({ navigation }) {
             const userData = userDoc.data();
             if (userData) {
                 setName(userData.username);
+                setProfileImage(userData.profileImage);
             }
         } catch (error) {
             console.error('Error fetching user data:', error);
         }
     };
   
-  
+    const reloadPage = () => {
+      console.log("page reloaded");
+    };
+
+    const goToSearch = () => {
+      console.log('go to search'); 
+    };
+
+    const goToProfile = () => {
+      navigation.navigate("Profile");
+    };
+
     return (
-      <>
-      <View style={styles.bigcontainer}>
-      <Text style={styles.loginText}>TO DO: HOME</Text>
-      <Text style={styles.label}>Name: {name}</Text>
+      <View style={styles.container}>
+            <View style={styles.bottomNavigation}>
+                <TouchableOpacity onPress={reloadPage} style={styles.iconContainer}>
+                  <Image source={homeImg} style={styles.iconImage} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToSearch} style={styles.iconContainer}>
+                  <Image source={searchImg} style={styles.searchIconImage} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToProfile} style={styles.iconContainer}>
+                    {profileImage ? (
+                        <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                    ) : (
+                        <Image source={defaultpfp} style={styles.profileImage} />
+                    )}
+                </TouchableOpacity>
+            </View>
         </View>
-      </>
     );
   }
   
   const styles = StyleSheet.create({
-    logo: {
-      width: '100%', 
-      height: 96, 
-      resizeMode: 'contain',
-      top: 0,
-      
-    },
-    bigcontainer: {
-      flex: 1,
-      backgroundColor: 'black',
-      alignItems: 'center',
-    },
     container: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
       backgroundColor: 'black',
-      paddingTop: StatusBar.currentHeight,
+      alignItems: 'center',
     },
     loginText: {
       fontSize: 36,
@@ -76,40 +86,41 @@ function Home({ navigation }) {
       textShadowOffset: { width: 2, height: 2 },
       textShadowRadius: 10,
     },
-    formContainer: {
-      marginTop: 20,
-      width: '80%',
-      padding: 30,
-      borderWidth: 0,
-      borderColor: '#ccc',
-      borderRadius: 10,
-      backgroundColor: '#000000',
-    },
-    input: {
-      height: 40,
-      borderColor: 'gray',
-      borderWidth: 1,
-      marginBottom: 10,
-      paddingHorizontal: 10,
-    },
-    loginButton: {
-      backgroundColor: '#000000',
-      padding: 10,
-      alignItems: 'center',
-      borderRadius: 20,
-      borderColor: '#B1EEDB',
-      borderWidth: 2,
-      top: 20,
-      marginTop: 15,
-    },
-    buttonText: {
+    label: {
       color: 'white',
+      fontSize: 20,
+      marginTop: 20,
     },
-    forgotPasswordText: {
-      color: '#B1EEDB',
-      marginTop: 50,
-      textAlign: 'center',
-      textDecorationLine: 'underline',
+    bottomNavigation: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      position: 'absolute',
+      bottom: 20,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 20,
+    },
+    iconContainer: {
+      alignItems: 'center',
+    },
+    icon: {
+      color: 'white',
+      fontSize: 20,
+      fontWeight: 'bold',
+    },
+    iconImage: {
+      width: 35,
+      height: 35,
+    },
+    searchIconImage: {
+      width: 25,
+      height: 25,
+    },
+    profileImage: {
+      width: 30,
+      height: 30,
+      borderRadius: 20,
     },
   });
 
