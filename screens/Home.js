@@ -4,7 +4,7 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 
-import homeImg from '../img/home.png'
+import homeImg from '../img/currentHome.png'
 import searchImg from '../img/searchImg2.png'
 import defaultpfp from '../img/defaultpfp.png'
 import chat from '../img/chat.png'
