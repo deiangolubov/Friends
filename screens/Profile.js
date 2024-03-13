@@ -1,5 +1,5 @@
 import React, { useState , useEffect } from 'react';
-import { View, Text, Button, Image, StyleSheet, TextInput, TouchableOpacity, StatusBar} from 'react-native';
+import { View, Text, Button, Image, StyleSheet, TextInput, TouchableOpacity, StatusBar, Modal } from 'react-native';
 
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
@@ -14,7 +14,8 @@ function Profile({ navigation }) {
     const [profileImage, setProfileImage] = useState(null);
     const [user, setUser] = useState(null);
     const [name, setName] = useState('');
-    const [bio, setBio] = useState('')
+    const [bio, setBio] = useState('');
+    const [modalVisible, setModalVisible] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -57,6 +58,14 @@ function Profile({ navigation }) {
         console.log("edit profile");
     }
 
+    const logout = () => {
+        console.log("logout");
+    }
+
+    const deleteAccount = () => {
+        console.log("delete account");
+    }
+
     const goToChat = () => {
         console.log("go to chat");
     };
@@ -64,24 +73,22 @@ function Profile({ navigation }) {
     return (
         <View style={styles.container}>
             <View style={styles.topContainer}>
-            <View style={styles.profileHeader}>
-                <View style={styles.profileImageContainer}>
-                    {profileImage ? (
-                        <Image source={{ uri: profileImage }} style={styles.topProfileImage} />
-                    ) : (
-                        <Image source={defaultpfp} style={styles.topProfileImage} />
-                    )}
+                <View style={styles.profileHeader}>
+                    <View style={styles.profileImageContainer}>
+                        {profileImage ? (
+                            <Image source={{ uri: profileImage }} style={styles.topProfileImage} />
+                        ) : (
+                            <Image source={defaultpfp} style={styles.topProfileImage} />
+                        )}
+                    </View>
+                    <Text style={styles.userName}>{name}</Text>
+                    <Text style={styles.bio}>{bio}</Text>
                 </View>
-                <Text style={styles.userName}>{name}</Text>
-                <Text style={styles.bio}>{bio}</Text>
-            </View>
-            <View style={styles.groupsStyles}>
-                <Text>0 groups following</Text>
-            </View>
-            </View>
-            <View style={styles.editContainer}>
-                <TouchableOpacity onPress={editProfile} style={styles.editProfile}>
-                  <Text style={styles.editButton}>Edit profile</Text>
+                <View style={styles.groupsStyles}>
+                    <Text>0 groups following</Text>
+                </View>
+                <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.iconContainer}>
+                    <Text style={styles.moreIcon}>...</Text>
                 </TouchableOpacity>
             </View>
             <View style={styles.bottomNavigation}>
@@ -102,7 +109,36 @@ function Profile({ navigation }) {
                     )}
                 </TouchableOpacity>
             </View>
-    </View>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={modalVisible}
+                onRequestClose={() => {
+                    setModalVisible(!modalVisible);
+                }}
+            >
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <TouchableOpacity style={styles.modalOption} onPress={editProfile}>
+                            <Text style={styles.modalText}>Edit Profile</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.modalOption} onPress={logout}>
+                            <Text style={styles.modalText}>Logout</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.modalOption} onPress={deleteAccount}>
+                            <Text style={styles.modalText}>Delete Account</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ ...styles.modalOption, backgroundColor: "#2196F3" }}
+                            onPress={() => setModalVisible(!modalVisible)}
+                        >
+                            <Text style={styles.modalText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </View>
     );
 }
 
@@ -167,23 +203,45 @@ const styles = StyleSheet.create({
         marginLeft: 50,
         top: -20,
     },
-    editProfile: {
-        top: -450,
-        width: '80%',
-        borderWidth: 1,
-        borderColor: 'white',
-        paddingVertical: 10,
-        alignItems: 'center',
-        borderRadius: 5,
-    },
-    editContainer: {
-        width: '125%',
-        alignItems: 'center',
-    },
-    editButton: {
-        fontSize: 17,
+    moreIcon: {
+        color: 'white',
+        fontSize: 20,
         fontWeight: 'bold',
+        top: -100,
     },
+    centeredView: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        marginTop: 22
+    },
+    modalView: {
+        margin: 20,
+        backgroundColor: "black",
+        borderRadius: 20,
+        padding: 35,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5
+    },
+    modalText: {
+        marginBottom: 15,
+        textAlign: "center"
+    },
+    modalOption: {
+        marginBottom: 10,
+        padding: 10,
+        width: 200,
+        alignItems: "center",
+        backgroundColor: "black",
+        borderRadius: 10,
+    }
 });
 
 export default Profile;
