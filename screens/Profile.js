@@ -8,6 +8,7 @@ import storage from '@react-native-firebase/storage';
 import homeImg from '../img/home.png'
 import searchImg from '../img/searchImg2.png'
 import defaultpfp from '../img/defaultpfp.png'
+import chat from '../img/chat.png'
 
 function Profile({ navigation }) {
     const [profileImage, setProfileImage] = useState(null);
@@ -56,6 +57,10 @@ function Profile({ navigation }) {
         console.log("edit profile");
     }
 
+    const goToChat = () => {
+        console.log("go to chat");
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.topContainer}>
@@ -85,6 +90,9 @@ function Profile({ navigation }) {
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToSearch} style={styles.iconContainer}>
                     <Image source={searchImg} style={styles.searchIconImage} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToChat} style={styles.iconContainer}>
+                    <Image source={chat} style={styles.searchIconImage} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToProfile} style={styles.iconContainer}>
                     {profileImage ? (
