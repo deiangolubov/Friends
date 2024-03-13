@@ -58,8 +58,13 @@ function Profile({ navigation }) {
         console.log("edit profile");
     }
 
-    const logout = () => {
-        console.log("logout");
+    const logout = async () => {
+        try {
+            await auth().signOut();
+            navigation.navigate('Login');
+        } catch (error) {
+            console.log("Log out failed: %s", error);
+        }
     }
 
     const deleteAccount = () => {
@@ -123,10 +128,10 @@ function Profile({ navigation }) {
                         <TouchableOpacity style={styles.modalOption} onPress={editProfile}>
                             <Text style={styles.modalText}>Edit Profile</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.modalOption} onPress={logout}>
+                        <TouchableOpacity style={{ ...styles.modalOption, backgroundColor: "red"}} onPress={logout}>
                             <Text style={styles.modalText}>Logout</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.modalOption} onPress={deleteAccount}>
+                        <TouchableOpacity style={{ ...styles.modalOption, backgroundColor: "red"}} onPress={deleteAccount}>
                             <Text style={styles.modalText}>Delete Account</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -232,7 +237,7 @@ const styles = StyleSheet.create({
     },
     modalText: {
         marginBottom: 15,
-        textAlign: "center"
+        textAlign: "center",
     },
     modalOption: {
         marginBottom: 10,
