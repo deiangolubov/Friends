@@ -18,6 +18,8 @@ function Profile({ navigation }) {
     const [bio, setBio] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
     const [forceUpdate, setForceUpdate] = useState(false);
+    const [editBio, setEditBio] = useState(false);
+    const [newBio, setNewBio] = useState('');
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -103,6 +105,18 @@ function Profile({ navigation }) {
         });
     }
 
+    const saveBio = async () => {
+        try {
+            await firestore().collection('users').doc(user.uid).update({
+                bio: newBio
+            });
+            setBio(newBio); // Update local state with new bio
+            setEditBio(false); // Disable bio editing mode
+        } catch (error) {
+            console.error('Error saving bio:', error);
+        }
+    }
+
     return (
         <View style={styles.container}>
             <View style={styles.topContainer}>
@@ -117,7 +131,23 @@ function Profile({ navigation }) {
                     </TouchableOpacity>
                     </View>
                     <Text style={styles.userName}>{name}</Text>
-                    <Text style={styles.bio}>{bio}</Text>
+                    {editBio ? (
+                        <View style={styles.bioInputContainer}>
+                            <TextInput
+                                style={styles.bioInput}
+                                value={newBio}
+                                onChangeText={text => setNewBio(text)}
+                                placeholder="Enter new bio"
+                            />
+                            <TouchableOpacity onPress={saveBio}>
+                                <Text style={styles.saveButton}>Save</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <TouchableOpacity onPress={() => setEditBio(true)}>
+                            <Text style={styles.bio}>{bio}</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
                 <View style={styles.groupsStyles}>
                     <Text>0 groups following</Text>
