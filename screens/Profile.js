@@ -4,6 +4,7 @@ import { View, Text, Button, Image, StyleSheet, TextInput, TouchableOpacity, Sta
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
+import * as ImagePicker from 'react-native-image-picker';
 
 import homeImg from '../img/home.png'
 import searchImg from '../img/searchImg2.png'
@@ -16,6 +17,7 @@ function Profile({ navigation }) {
     const [name, setName] = useState('');
     const [bio, setBio] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
+    const [forceUpdate, setForceUpdate] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -71,16 +73,48 @@ function Profile({ navigation }) {
         console.log("delete account");
     }
 
+    const changeProfilePic = async () => {
+        ImagePicker.launchImageLibrary({}, async response => {
+            console.log(response);
+            if (response.assets && response.assets.length > 0) {
+                const selectedImage = response.assets[0];
+                try {
+                    const imageRef = storage().ref(`profile_images/${user.uid}`);
+    
+                    await imageRef.putFile(selectedImage.uri);
+    
+                    const imageUrl = await imageRef.getDownloadURL();
+    
+                    setProfileImage(imageUrl);
+   
+                    await firestore().collection('users').doc(user.uid).update({
+                        profileImage: imageUrl
+                    });
+    
+                    console.log('Profile image uploaded successfully.');
+                    setForceUpdate(prevState => !prevState);
+                    console.log('rerender')
+                } catch (error) {
+                    console.error('Error uploading profile image:', error);
+                }
+            } else {
+                console.log('No image selected.');
+            }
+        });
+    }
+
     return (
         <View style={styles.container}>
             <View style={styles.topContainer}>
                 <View style={styles.profileHeader}>
                     <View style={styles.profileImageContainer}>
+                    <TouchableOpacity  onPress={changeProfilePic}>
                         {profileImage ? (
                             <Image source={{ uri: profileImage }} style={styles.topProfileImage} />
                         ) : (
                             <Image source={defaultpfp} style={styles.topProfileImage} />
                         )}
+                    </TouchableOpacity>
                     </View>
                     <Text style={styles.userName}>{name}</Text>
                     <Text style={styles.bio}>{bio}</Text>
