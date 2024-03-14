@@ -42,21 +42,21 @@ function Profile({ navigation }) {
         }
     };    
 
-    const reloadPage = () => {
-        console.log("page reloaded");
+    const goToHome = () => {
+        navigation.navigate('Home')
     };
   
     const goToSearch = () => {
-        console.log('go to search'); 
+        navigation.navigate('Search')
     };
   
     const goToProfile = () => {
-        navigation.navigate("Profile");
+        navigation.navigate('Profile');
     };
 
-    const editProfile = () => {
-        console.log("edit profile");
-    }
+    const goToChat = () => {
+        navigation.navigate('Chat')
+    };
 
     const logout = async () => {
         try {
@@ -70,10 +70,6 @@ function Profile({ navigation }) {
     const deleteAccount = () => {
         console.log("delete account");
     }
-
-    const goToChat = () => {
-        console.log("go to chat");
-    };
 
     return (
         <View style={styles.container}>
@@ -97,7 +93,7 @@ function Profile({ navigation }) {
                 </TouchableOpacity>
             </View>
             <View style={styles.bottomNavigation}>
-                <TouchableOpacity onPress={reloadPage} style={styles.iconContainer}>
+                <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
                     <Image source={homeImg} style={styles.iconImage} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToSearch} style={styles.iconContainer}>
@@ -125,9 +121,6 @@ function Profile({ navigation }) {
             >
                 <View style={styles.centeredView}>
                     <View style={styles.modalView}>
-                        <TouchableOpacity style={styles.modalOption} onPress={editProfile}>
-                            <Text style={styles.modalText}>Edit Profile</Text>
-                        </TouchableOpacity>
                         <TouchableOpacity style={{ ...styles.modalOption, backgroundColor: "red"}} onPress={logout}>
                             <Text style={styles.modalText}>Logout</Text>
                         </TouchableOpacity>
