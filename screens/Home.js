@@ -14,12 +14,14 @@ function Home({ navigation }) {
     const [profileImage, setProfileImage] = useState(null);
     const [user, setUser] = useState(null);
     const [name, setName] = useState('');
+    const [joinedGroups, setJoinedGroups] = useState([]);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
             setUser(user);
             if (user) {
                 fetchUserData(user.uid);
+                checkJoinedGroups(user.uid);
             }
         });
 
@@ -37,7 +39,20 @@ function Home({ navigation }) {
         } catch (error) {
             console.error('Error fetching user data:', error);
         }
-    };    
+    };   
+    
+    const checkJoinedGroups = async (uid) => {
+        try {
+            const querySnapshot = await firestore().collection(`users/${uid}/joinedGroups`).get();
+            const groups = [];
+            querySnapshot.forEach(doc => {
+                groups.push(doc.data());
+            });
+            setJoinedGroups(groups);
+        } catch (error) {
+            console.error('Error checking joined groups:', error);
+        }
+    };
 
     const goToHome = () => {
         console.log('already on home')
@@ -55,9 +70,28 @@ function Home({ navigation }) {
         navigation.navigate('Chat');
     };
 
+    const joinGroup = () => {
+        console.log('Join a group');
+    };
+
+    const createGroup = () => {
+        navigation.navigate('CreateGroup');
+    };
+
     return (
         <View style={styles.container}>
-            <Text>Home</Text>
+            {joinedGroups.length === 0 && (
+                <View style={styles.messageContainer}>
+                    <Text style={styles.noGroupText}>You are not part of any group.</Text>
+                    <TouchableOpacity onPress={joinGroup}>
+                        <Text style={styles.linkText}>Join a group</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.noGroupText}> or </Text>
+                    <TouchableOpacity onPress={createGroup}>
+                        <Text style={styles.linkText}>Create a new group</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
             <View style={styles.bottomNavigation}>
                 <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
                     <Image source={homeImg} style={styles.iconImage} />
@@ -115,6 +149,21 @@ const styles = StyleSheet.create({
     groupsStyles: {
         marginLeft: 50,
         top: -20,
+    },
+    noGroupText: {
+        color: 'white',
+        marginBottom: 10,
+        textAlign: 'center',
+        marginTop: 10,
+    },
+    messageContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        flex: 1,
+    },
+    linkText: {
+        color: '#B1EEDB',
+        marginTop: 5,
     },
 });
 

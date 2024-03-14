@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         backgroundColor: "black",
         borderRadius: 10,
-    }
+    },
 });
 
 export default Profile;
