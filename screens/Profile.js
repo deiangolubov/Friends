@@ -20,6 +20,7 @@ function Profile({ navigation }) {
     const [forceUpdate, setForceUpdate] = useState(false);
     const [editBio, setEditBio] = useState(false);
     const [newBio, setNewBio] = useState('');
+    const [groupCount, setGroupCount] = useState(0);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -41,6 +42,9 @@ function Profile({ navigation }) {
                 setProfileImage(userData.profileImage);
                 setBio(userData.bio);
             }
+
+            const joinedGroupsSnapshot = await firestore().collection('users').doc(uid).collection('joinedGroups').get();
+            setGroupCount(joinedGroupsSnapshot.size);
         } catch (error) {
             console.error('Error fetching user data:', error);
         }
@@ -117,6 +121,10 @@ function Profile({ navigation }) {
         }
     }
 
+    const createGroup = () => {
+        navigation.navigate('CreateGroup');
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.topContainer}>
@@ -145,12 +153,12 @@ function Profile({ navigation }) {
                         </View>
                     ) : (
                         <TouchableOpacity onPress={() => setEditBio(true)}>
-                            <Text style={styles.bio}>{bio}</Text>
+                            <Text style={styles.bio}>{bio ? bio : "No bio"}</Text>
                         </TouchableOpacity>
                     )}
                 </View>
                 <View style={styles.groupsStyles}>
-                    <Text>0 groups following</Text>
+                    <Text>{groupCount} groups following</Text>
                 </View>
                 <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.iconContainer}>
                     <Text style={styles.moreIcon}>...</Text>
@@ -193,6 +201,15 @@ function Profile({ navigation }) {
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={{ ...styles.modalOption, backgroundColor: "#2196F3" }}
+                            onPress={() => {
+                                setModalVisible(!modalVisible);
+                                createGroup();
+                            }}
+                        >           
+                            <Text style={styles.modalText}>Create group</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ ...styles.modalOption, backgroundColor: "#2196F3" }}
                             onPress={() => setModalVisible(!modalVisible)}
                         >
                             <Text style={styles.modalText}>Close</Text>
@@ -209,6 +226,9 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'black',
         alignItems: 'center',
+    },
+    saveButton: {
+        marginLeft: 5,
     },
     topContainer: {
         flex: 1,

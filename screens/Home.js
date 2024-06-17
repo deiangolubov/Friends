@@ -80,7 +80,7 @@ function Home({ navigation }) {
 
     return (
         <View style={styles.container}>
-            {joinedGroups.length === 0 && (
+            {joinedGroups.length < 1 && (
                 <View style={styles.messageContainer}>
                     <Text style={styles.noGroupText}>You are not part of any group.</Text>
                     <TouchableOpacity onPress={joinGroup}>
