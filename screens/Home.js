@@ -1,27 +1,25 @@
-import React, { useState , useEffect } from 'react';
-import { View, Text, Button, Image, StyleSheet, TextInput, TouchableOpacity, StatusBar, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
-import storage from '@react-native-firebase/storage';
 
-import homeImg from '../img/currentHome.png'
-import searchImg from '../img/searchImg2.png'
-import defaultpfp from '../img/defaultpfp.png'
-import chat from '../img/chat.png'
+import homeImg from '../img/currentHome.png';
+import searchImg from '../img/searchImg2.png';
+import defaultpfp from '../img/defaultpfp.png';
+import chat from '../img/chat.png';
 
 function Home({ navigation }) {
     const [profileImage, setProfileImage] = useState(null);
     const [user, setUser] = useState(null);
     const [name, setName] = useState('');
-    const [joinedGroups, setJoinedGroups] = useState([]);
+    const [groupCount, setGroupCount] = useState(0);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
             setUser(user);
             if (user) {
                 fetchUserData(user.uid);
-                checkJoinedGroups(user.uid);
             }
         });
 
@@ -36,34 +34,24 @@ function Home({ navigation }) {
                 setName(userData.username);
                 setProfileImage(userData.profileImage);
             }
+
+            const joinedGroupsSnapshot = await firestore().collection('users').doc(uid).collection('joinedGroups').get();
+            setGroupCount(joinedGroupsSnapshot.size);
         } catch (error) {
             console.error('Error fetching user data:', error);
-        }
-    };   
-    
-    const checkJoinedGroups = async (uid) => {
-        try {
-            const querySnapshot = await firestore().collection(`users/${uid}/joinedGroups`).get();
-            const groups = [];
-            querySnapshot.forEach(doc => {
-                groups.push(doc.data());
-            });
-            setJoinedGroups(groups);
-        } catch (error) {
-            console.error('Error checking joined groups:', error);
         }
     };
 
     const goToHome = () => {
-        console.log('already on home')
+        console.log('already on home');
     };
-  
+
     const goToSearch = () => {
-        navigation.navigate('Search')
+        navigation.navigate('Search');
     };
-  
+
     const goToProfile = () => {
-        navigation.navigate("Profile");
+        navigation.navigate('Profile');
     };
 
     const goToChat = () => {
@@ -71,7 +59,7 @@ function Home({ navigation }) {
     };
 
     const joinGroup = () => {
-        console.log('Join a group');
+        navigation.navigate('JoinGroup');
     };
 
     const createGroup = () => {
@@ -80,7 +68,7 @@ function Home({ navigation }) {
 
     return (
         <View style={styles.container}>
-            {joinedGroups.length < 1 && (
+            {groupCount < 1 ? (
                 <View style={styles.messageContainer}>
                     <Text style={styles.noGroupText}>You are not part of any group.</Text>
                     <TouchableOpacity onPress={joinGroup}>
@@ -91,6 +79,8 @@ function Home({ navigation }) {
                         <Text style={styles.linkText}>Create a new group</Text>
                     </TouchableOpacity>
                 </View>
+            ) : (
+                <Text style={styles.noGroupText}>Part of one or more groups</Text>
             )}
             <View style={styles.bottomNavigation}>
                 <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
@@ -145,10 +135,6 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 20,
-    },
-    groupsStyles: {
-        marginLeft: 50,
-        top: -20,
     },
     noGroupText: {
         color: 'white',
