@@ -96,6 +96,10 @@ function CreateGroup({ navigation }) {
         }
     }
 
+    const handleCancel = async () => {
+        navigation.navigate('Profile')
+    }
+
     return (
         <View style={styles.bigcontainer}>
             {isSetUpComplete && (
@@ -124,6 +128,9 @@ function CreateGroup({ navigation }) {
                         placeholder="Group description" />
                     <TouchableOpacity style={styles.loginButton} onPress={handleContinue}>
                         <Text style={styles.buttonText}>CONTINUE</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.loginButton} onPress={handleCancel}>
+                        <Text style={styles.buttonText}>   CANCEL  </Text>
                     </TouchableOpacity>
                 </View></>
             )}
