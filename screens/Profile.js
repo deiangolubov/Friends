@@ -21,6 +21,8 @@ function Profile({ navigation }) {
     const [editBio, setEditBio] = useState(false);
     const [newBio, setNewBio] = useState('');
     const [groupCount, setGroupCount] = useState(0);
+    const [groups, setGroups] = useState([]);
+    const [groupModal, setGroupModal] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -44,6 +46,13 @@ function Profile({ navigation }) {
             }
 
             const joinedGroupsSnapshot = await firestore().collection('users').doc(uid).collection('joinedGroups').get();
+            const groupPromises = joinedGroupsSnapshot.docs.map(doc => 
+                firestore().collection('groups').doc(doc.id).get()
+            );
+
+            const groupDocs = await Promise.all(groupPromises);
+            const groups = groupDocs.map(groupDoc => ({ id: groupDoc.id, ...groupDoc.data() }));
+            setGroups(groups); 
             setGroupCount(joinedGroupsSnapshot.size);
         } catch (error) {
             console.error('Error fetching user data:', error);
@@ -158,7 +167,9 @@ function Profile({ navigation }) {
                     )}
                 </View>
                 <View style={styles.groupsStyles}>
-                    <Text>{groupCount} groups following</Text>
+                    <TouchableOpacity onPress={() => setGroupModal(true)}>
+                        <Text>{groupCount} groups following</Text>
+                    </TouchableOpacity>
                 </View>
                 <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.iconContainer}>
                     <Text style={styles.moreIcon}>...</Text>
@@ -211,6 +222,38 @@ function Profile({ navigation }) {
                         <TouchableOpacity
                             style={{ ...styles.modalOption, backgroundColor: "#2196F3" }}
                             onPress={() => setModalVisible(!modalVisible)}
+                        >
+                            <Text style={styles.modalText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={groupModal}
+                onRequestClose={() => {
+                    setGroupModal(!groupModal);
+                }}
+                >
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <Text style={styles.modalTitle}>Following Groups</Text>
+                        {groups.map(group => (
+                            <View key={group.id} style={styles.groupItem}>
+                                <Image source={{ uri: group.photoUrl }} style={styles.groupImage} />
+                                <Text style={styles.groupName}>{group.name}</Text>
+                                <TouchableOpacity 
+                                    style={styles.leaveButton} 
+                                    onPress={() => leaveGroup(group.id)}
+                                >
+                                    <Text style={styles.leaveButtonText}>Leave Group</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                        <TouchableOpacity
+                            style={{ ...styles.modalOption, backgroundColor: "#2196F3" }}
+                            onPress={() => setGroupModal(!groupModal)}
                         >
                             <Text style={styles.modalText}>Close</Text>
                         </TouchableOpacity>
