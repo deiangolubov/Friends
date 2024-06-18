@@ -261,8 +261,8 @@ function Profile({ navigation }) {
                             style={styles.groupItem}
                             onPress={() => {
                                 setModalVisible(false);
-                                navigation.navigate('GroupProfile', { groupId: group.id });
-                            }}
+                                navigation.navigate('GroupProfile', { groupId: group.id, userId: user.uid});
+                            }} 
                             >
                             <Image source={{ uri: group.profileImage }} style={styles.groupImage} />
                             <Text style={styles.groupName}>{group.name}</Text>

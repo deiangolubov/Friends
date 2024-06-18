@@ -3,9 +3,15 @@ import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import defaultGroupImage from '../img/defaultpfp.png'; 
 
+import homeImg from '../img/home.png';
+import searchImg from '../img/searchImg2.png';
+import chat from '../img/chat.png';
+import defaultpfp from '../img/defaultpfp.png';
+
 function GroupProfile({ route, navigation }) {
-    const { groupId } = route.params;
+    const { groupId, userId } = route.params;
     const [group, setGroup] = useState(null);
+    const [profileImage, setProfileImage] = useState(null);
 
     useEffect(() => {
         const fetchGroupData = async () => {
@@ -19,8 +25,23 @@ function GroupProfile({ route, navigation }) {
             }
         };
 
+        const fetchProfileImage = async (uid) => {
+            try {
+                const userDoc = await firestore().collection('users').doc(uid).get();
+                const userData = userDoc.data();
+                if (userData && userData.profileImage) {
+                    setProfileImage(userData.profileImage);
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+        };
+
         fetchGroupData();
-    }, [groupId]);
+        if (userId) {
+            fetchProfileImage(userId);
+        }
+    }, [groupId, userId]);
 
     if (!group) {
         return (
@@ -30,12 +51,48 @@ function GroupProfile({ route, navigation }) {
         );
     }
 
+    const goToHome = () => {
+        navigation.navigate('Home');
+    };
+
+    const goToSearch = () => {
+        navigation.navigate('Search');
+    };
+
+    const goToProfile = () => {
+        navigation.navigate('Profile');
+    };
+
+    const goToChat = () => {
+        navigation.navigate('Chat');
+    };
+
     return (
-        <View style={styles.container}>
-            <Image source={group.profileImage ? { uri: group.profileImage } : defaultGroupImage} style={styles.groupImage} />
-            <Text style={styles.groupName}>{group.name}</Text>
-            <Text style={styles.groupDescription}>{group.description}</Text>
-        </View>
+        <>
+            <View style={styles.container}>
+                <Image source={group.profileImage ? { uri: group.profileImage } : defaultGroupImage} style={styles.groupImage} />
+                <Text style={styles.groupName}>{group.name}</Text>
+                <Text style={styles.groupDescription}>{group.description}</Text>
+            </View>
+            <View style={styles.bottomNavigation}>
+                <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
+                    <Image source={homeImg} style={styles.iconImage} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToSearch} style={styles.iconContainer}>
+                    <Image source={searchImg} style={styles.searchIconImage} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToChat} style={styles.iconContainer}>
+                    <Image source={chat} style={styles.searchIconImage} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToProfile} style={styles.iconContainer}>
+                    {profileImage ? (
+                        <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                    ) : (
+                        <Image source={defaultpfp} style={styles.profileImage} />
+                    )}
+                </TouchableOpacity>
+            </View>
+        </>
     );
 }
 
@@ -45,6 +102,32 @@ const styles = StyleSheet.create({
         backgroundColor: 'black',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    bottomNavigation: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 20,
+    },
+    iconContainer: {
+        alignItems: 'center',
+    },
+    iconImage: {
+        width: 35,
+        height: 35,
+    },
+    searchIconImage: {
+        width: 25,
+        height: 25,
+    },
+    profileImage: {
+        width: 30,
+        height: 30,
+        borderRadius: 20,
     },
     groupImage: {
         width: 100,
