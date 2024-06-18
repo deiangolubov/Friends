@@ -134,6 +134,22 @@ function Profile({ navigation }) {
         navigation.navigate('CreateGroup');
     };
 
+    const leaveGroup = async (groupId) => {
+        try {
+            await firestore()
+                .collection('users')
+                .doc(user.uid)
+                .collection('joinedGroups')
+                .doc(groupId)
+                .delete();
+    
+            setGroups(prevGroups => prevGroups.filter(group => group.id !== groupId));
+            setGroupCount(prevCount => prevCount - 1);
+        } catch (error) {
+            console.error('Error leaving group:', error);
+        }
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.topContainer}>
@@ -241,7 +257,7 @@ function Profile({ navigation }) {
                         <Text style={styles.modalTitle}>Following Groups</Text>
                         {groups.map(group => (
                             <View key={group.id} style={styles.groupItem}>
-                                <Image source={{ uri: group.photoUrl }} style={styles.groupImage} />
+                                <Image source={{ uri: group.profileImage }} style={styles.groupImage} />
                                 <Text style={styles.groupName}>{group.name}</Text>
                                 <TouchableOpacity 
                                     style={styles.leaveButton} 
@@ -252,7 +268,7 @@ function Profile({ navigation }) {
                             </View>
                         ))}
                         <TouchableOpacity
-                            style={{ ...styles.modalOption, backgroundColor: "#2196F3" }}
+                            style={{ ...styles.modalOption, backgroundColor: "#B1EEDB" }}
                             onPress={() => setGroupModal(!groupModal)}
                         >
                             <Text style={styles.modalText}>Close</Text>
@@ -269,6 +285,46 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'black',
         alignItems: 'center',
+    },
+    groupsText: {
+        color: 'white',
+        fontSize: 16,
+    },
+    groupItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    groupImage: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        marginRight: 10,
+    },
+    groupName: {
+        flex: 1,
+        color: 'white',
+    },
+    leaveButton: {
+        backgroundColor: 'red',
+        padding: 5,
+        borderRadius: 5,
+    },
+    leaveButtonText: {
+        color: 'white',
+    },
+    modalTitle: {
+        fontSize: 20,
+        marginBottom: 20,
+        color: 'white',
+    },
+    modalOption: {
+        marginBottom: 10,
+        padding: 10,
+        width: 200,
+        alignItems: "center",
+        backgroundColor: "black",
+        borderRadius: 10,
     },
     saveButton: {
         marginLeft: 5,
