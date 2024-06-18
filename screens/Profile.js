@@ -256,16 +256,23 @@ function Profile({ navigation }) {
                     <View style={styles.modalView}>
                         <Text style={styles.modalTitle}>Following Groups</Text>
                         {groups.map(group => (
-                            <View key={group.id} style={styles.groupItem}>
-                                <Image source={{ uri: group.profileImage }} style={styles.groupImage} />
-                                <Text style={styles.groupName}>{group.name}</Text>
-                                <TouchableOpacity 
-                                    style={styles.leaveButton} 
-                                    onPress={() => leaveGroup(group.id)}
-                                >
-                                    <Text style={styles.leaveButtonText}>Leave Group</Text>
-                                </TouchableOpacity>
-                            </View>
+                        <TouchableOpacity 
+                            key={group.id} 
+                            style={styles.groupItem}
+                            onPress={() => {
+                                setModalVisible(false);
+                                navigation.navigate('GroupProfile', { groupId: group.id });
+                            }}
+                            >
+                            <Image source={{ uri: group.profileImage }} style={styles.groupImage} />
+                            <Text style={styles.groupName}>{group.name}</Text>
+                            <TouchableOpacity 
+                                style={styles.leaveButton} 
+                                onPress={() => leaveGroup(group.id)}
+                            >
+                                <Text style={styles.leaveButtonText}>Leave Group</Text>
+                            </TouchableOpacity>
+                        </TouchableOpacity>
                         ))}
                         <TouchableOpacity
                             style={{ ...styles.modalOption, backgroundColor: "#B1EEDB" }}

@@ -11,6 +11,7 @@ import Profile from './screens/Profile'
 import Search from './screens/Search'
 import Chat from './screens/Chat'
 import CreateGroup from './screens/CreateGroup'
+import GroupProfile from './screens/GroupProfile'
 
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +33,7 @@ function App() {
         <Stack.Screen name="Search" component={Search} />
         <Stack.Screen name="Chat" component={Chat} />
         <Stack.Screen name="CreateGroup" component={CreateGroup} />
+        <Stack.Screen name="GroupProfile" component={GroupProfile} />
       </Stack.Navigator>
     </NavigationContainer>
   );
