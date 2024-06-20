@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
-import defaultGroupImage from '../img/defaultpfp.png'; 
+import defaultGroupImage from '../img/defaultpfp.png';
 
 import homeImg from '../img/home.png';
 import searchImg from '../img/searchImg2.png';
@@ -68,22 +68,27 @@ function GroupProfile({ route, navigation }) {
 
     const handleFollowToggle = async () => {
         try {
-            if (isFollowing) {
-                await firestore()
-                    .collection('users')
-                    .doc(userId)
-                    .collection('joinedGroups')
-                    .doc(groupId)
-                    .delete();
-            } else {
-                await firestore()
-                    .collection('users')
-                    .doc(userId)
-                    .collection('joinedGroups')
-                    .doc(groupId)
-                    .set({});
-            }
+            const groupRef = firestore().collection('groups').doc(groupId);
+            const userRef = firestore().collection('users').doc(userId).collection('joinedGroups').doc(groupId);
+
+            await firestore().runTransaction(async (transaction) => {
+                const groupDoc = await transaction.get(groupRef);
+                const userJoinedGroupDoc = await transaction.get(userRef);
+
+                if (userJoinedGroupDoc.exists) {
+                    transaction.delete(userRef);
+                    transaction.update(groupRef, { followers: groupDoc.data().followers - 1 });
+                } else {
+                    transaction.set(userRef, {});
+                    transaction.update(groupRef, { followers: groupDoc.data().followers + 1 });
+                }
+            });
+
             setIsFollowing(!isFollowing);
+            setGroup((prevGroup) => ({
+                ...prevGroup,
+                followers: isFollowing ? prevGroup.followers - 1 : prevGroup.followers + 1,
+            }));
         } catch (error) {
             console.error('Error toggling follow status:', error);
         }
@@ -120,7 +125,7 @@ function GroupProfile({ route, navigation }) {
                     <Image source={group.profileImage ? { uri: group.profileImage } : defaultGroupImage} style={styles.groupImage} />
                     <View style={styles.groupStats}>
                         <Text style={styles.statsText}>Posts: N/A</Text>
-                        <Text style={styles.statsText}>Followers: N/A</Text>
+                        <Text style={styles.statsText}>Followers: {group.followers}</Text>
                     </View>
                 </View>
                 <Text style={styles.groupName}>{group.name}</Text>
@@ -184,7 +189,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginTop: 20,
         textAlign: 'left',
-        marginLeft: 20,
+        marginLeft: 10,
     },
     groupDescription: {
         color: 'white',
@@ -203,7 +208,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'grey',
     },
     notFollowing: {
-        backgroundColor: '#2196F3',
+        backgroundColor: '#B1EEDB',
     },
     followButtonText: {
         color: 'white',

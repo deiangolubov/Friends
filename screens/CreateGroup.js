@@ -80,6 +80,7 @@ function CreateGroup({ navigation }) {
                 admin: name,
                 public: groupPublic === 'Yes',
                 visible: groupVisible === 'Yes',
+                followers: 1,
             });
             await firestore().collection('users').doc(user.uid).collection('joinedGroups').doc(groupId).set({
                 groupId: groupId,
