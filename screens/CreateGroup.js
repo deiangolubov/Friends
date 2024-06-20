@@ -84,6 +84,7 @@ function CreateGroup({ navigation }) {
             });
             await firestore().collection('users').doc(user.uid).collection('joinedGroups').doc(groupId).set({
                 groupId: groupId,
+                rightToPost: 'Yes'
             });
             setIsSetUpComplete(true);
             setTimeout(() => {

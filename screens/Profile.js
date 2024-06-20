@@ -327,8 +327,8 @@ const styles = StyleSheet.create({
     },
     modalOption: {
         marginBottom: 10,
-        padding: 10,
-        width: 200,
+        padding: 50,
+        width: 50,
         alignItems: "center",
         backgroundColor: "black",
         borderRadius: 10,
