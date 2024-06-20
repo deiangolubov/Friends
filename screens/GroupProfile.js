@@ -212,7 +212,7 @@ function GroupProfile({ route, navigation }) {
                             value={postContent}
                             onChangeText={setPostContent}
                         />
-                        <Button style={styles.uploadButton} title="Upload Image" onPress={handleImagePick} />
+                        <Button title="Upload Image" onPress={handleImagePick} color="#B1EEDB" />
                         {postImage && (
                             <Image source={{ uri: postImage }} style={styles.postImagePreview} />
                         )}
@@ -237,9 +237,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'black',
         paddingTop: 50,
         paddingHorizontal: 20,
-    },
-    uploadButton: {
-        backgroundColor: '#',
     },
     header: {
         flexDirection: 'row',
@@ -333,15 +330,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: 'rgba(0,0,0,0.5)',
-        borderBlockColor: '#B1EEDB',
     },
     modalView: {
         width: '80%',
-        backgroundColor: 'white',
+        backgroundColor: 'black',
         borderRadius: 10,
         padding: 20,
         alignItems: 'center',
-        height: '100%',
+        borderColor: 'black'
     },
     modalTitle: {
         fontSize: 18,
@@ -363,7 +359,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         width: '100%',
-        top: 100,
+        marginTop: 10,
     },
     modalButton: {
         paddingVertical: 10,
