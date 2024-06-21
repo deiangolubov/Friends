@@ -21,6 +21,7 @@ function GroupProfile({ route, navigation }) {
     const [postContent, setPostContent] = useState('');
     const [postImage, setPostImage] = useState(null);
     const [posts, setPosts] = useState([]);
+    const [numberOfPosts, setNumberOfPosts] = useState(0);
 
     useEffect(() => {
         const fetchGroupData = async () => {
@@ -66,52 +67,6 @@ function GroupProfile({ route, navigation }) {
             }
         };
 
-        const fetchPosts = async () => {
-            try {
-                const postsSnapshot = await firestore()
-                    .collection('groups')
-                    .doc(groupId)
-                    .collection('posts')
-                    .orderBy('timestamp', 'desc')
-                    .get();
-
-                const postsData = await Promise.all(
-                    postsSnapshot.docs.map(async (postDoc) => {
-                        const postData = postDoc.data();
-                        const authorDoc = await firestore().collection('users').doc(postData.authorId).get();
-                        const authorData = authorDoc.data();
-                        const userLikedPost = await checkIfLiked(postDoc.id);
-                        return {
-                            id: postDoc.id,
-                            ...postData,
-                            authorName: authorData ? authorData.username : 'Unknown',
-                            userHasLiked: userLikedPost,
-                        };
-                    })
-                );
-
-                setPosts(postsData);
-            } catch (error) {
-                console.error('Error fetching posts:', error);
-            }
-        };
-
-        const checkIfLiked = async (postId) => {
-            try {
-                const likedPostDoc = await firestore()
-                    .collection('users')
-                    .doc(userId)
-                    .collection('likedPosts')
-                    .doc(postId)
-                    .get();
-
-                return likedPostDoc.exists;
-            } catch (error) {
-                console.error('Error checking if post is liked:', error);
-                return false;
-            }
-        };
-
         fetchGroupData();
         if (userId) {
             fetchProfileImage(userId);
@@ -119,6 +74,54 @@ function GroupProfile({ route, navigation }) {
         }
         fetchPosts();
     }, [groupId, userId]);
+
+    const checkIfLiked = async (postId) => {
+        try {
+            const likedPostDoc = await firestore()
+                .collection('users')
+                .doc(userId)
+                .collection('likedPosts')
+                .doc(postId)
+                .get();
+
+            return likedPostDoc.exists;
+        } catch (error) {
+            console.error('Error checking if post is liked:', error);
+            return false;
+        }
+    };
+
+    const fetchPosts = async () => {
+        try {
+            const postsSnapshot = await firestore()
+                .collection('groups')
+                .doc(groupId)
+                .collection('posts')
+                .orderBy('timestamp', 'desc')
+                .get();
+
+            const postsData = await Promise.all(
+                postsSnapshot.docs.map(async (postDoc) => {
+                    const postData = postDoc.data();
+                    const authorDoc = await firestore().collection('users').doc(postData.authorId).get();
+                    const authorData = authorDoc.data();
+                    const userLikedPost = await checkIfLiked(postDoc.id);
+                    return {
+                        id: postDoc.id,
+                        ...postData,
+                        authorName: authorData ? authorData.username : 'Unknown',
+                        userHasLiked: userLikedPost,
+                    };
+                })
+            );
+
+            setPosts(postsData);
+            const no = postsSnapshot.size
+            setNumberOfPosts(no);
+        } catch (error) {
+            console.error('Error fetching posts:', error);
+        }
+    };
 
     const handleFollowToggle = async () => {
         try {
@@ -282,7 +285,7 @@ function GroupProfile({ route, navigation }) {
                                     style={styles.groupImage}
                                 />
                                 <View style={styles.groupStats}>
-                                    <Text style={styles.statsText}>Posts: N/A</Text>
+                                    <Text style={styles.statsText}>Posts: {numberOfPosts}</Text>
                                     <Text style={styles.statsText}>Followers: {group.followers}</Text>
                                 </View>
                             </View>
@@ -351,10 +354,10 @@ function GroupProfile({ route, navigation }) {
                     <Image source={homeImg} style={styles.footerIcon} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToSearch}>
-                    <Image source={searchImg} style={styles.footerIcon} />
+                    <Image source={searchImg} style={styles.footerIcon2} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToChat}>
-                    <Image source={chat} style={styles.footerIcon} />
+                    <Image source={chat} style={styles.footerIcon2} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToProfile}>
                     <Image
@@ -403,7 +406,7 @@ const styles = StyleSheet.create({
     followButton: {
         alignSelf: 'center',
         paddingVertical: 8,
-        paddingHorizontal: 16,
+        paddingHorizontal: 22,
         borderRadius: 16,
         marginTop: 16,
     },
@@ -517,6 +520,11 @@ const styles = StyleSheet.create({
     footerIcon: {
         width: 30,
         height: 30,
+        borderRadius: 20,
+    },
+    footerIcon2: {
+        width: 20,
+        height: 20,
     },
 });
 
