@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, Button } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, Button, FlatList } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { launchImageLibrary } from 'react-native-image-picker';
 import defaultGroupImage from '../img/defaultpfp.png';
@@ -20,6 +20,7 @@ function GroupProfile({ route, navigation }) {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [postContent, setPostContent] = useState('');
     const [postImage, setPostImage] = useState(null);
+    const [posts, setPosts] = useState([]);
 
     useEffect(() => {
         const fetchGroupData = async () => {
@@ -65,11 +66,58 @@ function GroupProfile({ route, navigation }) {
             }
         };
 
+        const fetchPosts = async () => {
+            try {
+                const postsSnapshot = await firestore()
+                    .collection('groups')
+                    .doc(groupId)
+                    .collection('posts')
+                    .orderBy('timestamp', 'desc')
+                    .get();
+
+                const postsData = await Promise.all(
+                    postsSnapshot.docs.map(async (postDoc) => {
+                        const postData = postDoc.data();
+                        const authorDoc = await firestore().collection('users').doc(postData.authorId).get();
+                        const authorData = authorDoc.data();
+                        const userLikedPost = await checkIfLiked(postDoc.id);
+                        return {
+                            id: postDoc.id,
+                            ...postData,
+                            authorName: authorData ? authorData.username : 'Unknown',
+                            userHasLiked: userLikedPost,
+                        };
+                    })
+                );
+
+                setPosts(postsData);
+            } catch (error) {
+                console.error('Error fetching posts:', error);
+            }
+        };
+
+        const checkIfLiked = async (postId) => {
+            try {
+                const likedPostDoc = await firestore()
+                    .collection('users')
+                    .doc(userId)
+                    .collection('likedPosts')
+                    .doc(postId)
+                    .get();
+
+                return likedPostDoc.exists;
+            } catch (error) {
+                console.error('Error checking if post is liked:', error);
+                return false;
+            }
+        };
+
         fetchGroupData();
         if (userId) {
             fetchProfileImage(userId);
             checkIfFollowing();
         }
+        fetchPosts();
     }, [groupId, userId]);
 
     const handleFollowToggle = async () => {
@@ -108,12 +156,14 @@ function GroupProfile({ route, navigation }) {
                 content: postContent,
                 imageUrl: postImage,
                 authorId: userId,
+                likes: 0,
                 timestamp: firestore.FieldValue.serverTimestamp(),
             });
 
             setPostContent('');
             setPostImage(null);
             setIsModalVisible(false);
+            fetchPosts();
         } catch (error) {
             console.error('Error creating post:', error);
         }
@@ -125,6 +175,43 @@ function GroupProfile({ route, navigation }) {
                 setPostImage(response.assets[0].uri);
             }
         });
+    };
+
+    const handleLikeToggle = async (postId, currentLikes, userHasLiked) => {
+        try {
+            const postRef = firestore().collection('groups').doc(groupId).collection('posts').doc(postId);
+            await firestore().runTransaction(async (transaction) => {
+                const postDoc = await transaction.get(postRef);
+                const newLikes = userHasLiked ? currentLikes - 1 : currentLikes + 1;
+                transaction.update(postRef, { likes: newLikes });
+
+                if (!userHasLiked) {
+                    const userLikedPostRef = firestore()
+                        .collection('users')
+                        .doc(userId)
+                        .collection('likedPosts')
+                        .doc(postId);
+                    transaction.set(userLikedPostRef, { liked: true });
+                } else {
+                    const userLikedPostRef = firestore()
+                        .collection('users')
+                        .doc(userId)
+                        .collection('likedPosts')
+                        .doc(postId);
+                    transaction.delete(userLikedPostRef);
+                }
+            });
+
+            setPosts((prevPosts) =>
+                prevPosts.map((post) =>
+                    post.id === postId
+                        ? { ...post, likes: userHasLiked ? post.likes - 1 : post.likes + 1, userHasLiked: !userHasLiked }
+                        : post
+                )
+            );
+        } catch (error) {
+            console.error('Error toggling like status:', error);
+        }
     };
 
     if (!group) {
@@ -151,82 +238,131 @@ function GroupProfile({ route, navigation }) {
         navigation.navigate('Chat');
     };
 
+    const renderPost = ({ item }) => {
+        return (
+            <View style={styles.postContainer}>
+                <View style={styles.postHeader}>
+                    <Image
+                        source={group.profileImage ? { uri: group.profileImage } : defaultGroupImage}
+                        style={styles.postGroupImage}
+                    />
+                    <Text style={styles.postGroupName}>{group.name}</Text>
+                    <Text style={styles.postAuthor}>Posted by {item.authorName}</Text>
+                </View>
+                {item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.postImage} />}
+                <Text style={styles.postContent}>{item.content}</Text>
+                <View style={styles.postFooter}>
+                    <TouchableOpacity onPress={() => handleLikeToggle(item.id, item.likes, item.userHasLiked)}>
+                        <Image
+                            source={item.userHasLiked ? require('../img/heart-filled.png') : require('../img/heart-empty.png')}
+                            style={styles.likeIcon}
+                        />
+                    </TouchableOpacity>
+                    <Text style={styles.likeCount}>{item.likes}</Text>
+                    <TouchableOpacity>
+                        <Text style={styles.commentButton}>Comment</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    };
+
     return (
         <>
             <View style={styles.container}>
-                <View style={styles.header}>
-                    <Image source={group.profileImage ? { uri: group.profileImage } : defaultGroupImage} style={styles.groupImage} />
-                    <View style={styles.groupStats}>
-                        <Text style={styles.statsText}>Posts: N/A</Text>
-                        <Text style={styles.statsText}>Followers: {group.followers}</Text>
-                    </View>
-                </View>
-                <View style={styles.groupInfo}>
-                    <Text style={styles.groupName}>{group.name}</Text>
-                    {rightToPost && (
-                        <TouchableOpacity style={styles.createPostButton} onPress={() => setIsModalVisible(true)}>
-                            <Text style={styles.createPostButtonText}>Create Post</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
-                <TouchableOpacity
-                    style={[styles.followButton, isFollowing ? styles.following : styles.notFollowing]}
-                    onPress={handleFollowToggle}
-                >
-                    <Text style={styles.followButtonText}>{isFollowing ? 'Following' : 'Follow'}</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.bottomNavigation}>
-                <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
-                    <Image source={homeImg} style={styles.iconImage} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={goToSearch} style={styles.iconContainer}>
-                    <Image source={searchImg} style={styles.searchIconImage} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={goToChat} style={styles.iconContainer}>
-                    <Image source={chat} style={styles.searchIconImage} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={goToProfile} style={styles.iconContainer}>
-                    {profileImage ? (
-                        <Image source={{ uri: profileImage }} style={styles.profileImage} />
-                    ) : (
-                        <Image source={defaultpfp} style={styles.profileImage} />
-                    )}
-                </TouchableOpacity>
-            </View>
-
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={isModalVisible}
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalView}>
+                <FlatList
+                    data={posts}
+                    renderItem={renderPost}
+                    keyExtractor={(item) => item.id}
+                    ListHeaderComponent={
+                        <>
+                            <View style={styles.header}>
+                                <Image
+                                    source={group.profileImage ? { uri: group.profileImage } : defaultGroupImage}
+                                    style={styles.groupImage}
+                                />
+                                <View style={styles.groupStats}>
+                                    <Text style={styles.statsText}>Posts: N/A</Text>
+                                    <Text style={styles.statsText}>Followers: {group.followers}</Text>
+                                </View>
+                            </View>
+                            <View style={styles.groupInfo}>
+                                <Text style={styles.groupName}>{group.name}</Text>
+                                {rightToPost && (
+                                    <TouchableOpacity
+                                        style={styles.createPostButton}
+                                        onPress={() => setIsModalVisible(true)}
+                                    >
+                                        <Text style={styles.createPostButtonText}>Create Post</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                            <TouchableOpacity
+                                style={[
+                                    styles.followButton,
+                                    isFollowing ? styles.followingButton : styles.notFollowingButton,
+                                ]}
+                                onPress={handleFollowToggle}
+                            >
+                                <Text style={styles.followButtonText}>
+                                    {isFollowing ? 'Following' : 'Follow'}
+                                </Text>
+                            </TouchableOpacity>
+                        </>
+                    }
+                    contentContainerStyle={{ paddingBottom: 100 }} // Add padding to prevent overlap with the bottom bar
+                />
+                <Modal visible={isModalVisible} animationType="slide">
+                    <View style={styles.modalContainer}>
                         <Text style={styles.modalTitle}>Create Post</Text>
                         <TextInput
-                            style={styles.textInput}
+                            style={styles.modalInput}
                             placeholder="What's on your mind?"
-                            placeholderTextColor="#888"
-                            multiline
                             value={postContent}
                             onChangeText={setPostContent}
+                            multiline
                         />
-                        <Button title="Upload Image" onPress={handleImagePick} color="#B1EEDB" />
                         {postImage && (
-                            <Image source={{ uri: postImage }} style={styles.postImagePreview} />
+                            <Image
+                                source={{ uri: postImage }}
+                                style={styles.postImagePreview}
+                            />
                         )}
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsModalVisible(false)}>
-                                <Text style={styles.modalButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalButton, styles.postButton]} onPress={handleCreatePost}>
-                                <Text style={styles.modalButtonText}>Post</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <Button
+                            title="Pick Image"
+                            onPress={handleImagePick}
+                            color="lightgreen"
+                        />
+                        <Button
+                            title="Post"
+                            onPress={handleCreatePost}
+                            color="lightgreen"
+                        />
+                        <Button
+                            title="Cancel"
+                            onPress={() => setIsModalVisible(false)}
+                            color="red"
+                        />
                     </View>
-                </View>
-            </Modal>
+                </Modal>
+            </View>
+            <View style={styles.footer}>
+                <TouchableOpacity onPress={goToHome}>
+                    <Image source={homeImg} style={styles.footerIcon} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToSearch}>
+                    <Image source={searchImg} style={styles.footerIcon} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToChat}>
+                    <Image source={chat} style={styles.footerIcon} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goToProfile}>
+                    <Image
+                        source={profileImage ? { uri: profileImage } : defaultpfp}
+                        style={styles.footerIcon}
+                    />
+                </TouchableOpacity>
+            </View>
         </>
     );
 }
@@ -235,154 +371,152 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'black',
-        paddingTop: 50,
-        paddingHorizontal: 20,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
+        padding: 16,
+        backgroundColor: 'black',
     },
     groupImage: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        marginRight: 20,
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        marginRight: 16,
     },
     groupStats: {
         justifyContent: 'center',
     },
     statsText: {
         color: 'white',
-        fontSize: 16,
-        marginVertical: 5,
     },
     groupInfo: {
-        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 20,
+        padding: 16,
+        backgroundColor: 'black',
     },
     groupName: {
-        color: 'white',
         fontSize: 24,
         fontWeight: 'bold',
-    },
-    createPostButton: {
-        backgroundColor: '#B1EEDB',
-        padding: 10,
-        borderRadius: 5,
-    },
-    createPostButtonText: {
         color: 'white',
-        fontSize: 16,
-    },
-    groupDescription: {
-        color: 'white',
-        fontSize: 16,
-        textAlign: 'center',
-        marginVertical: 20,
     },
     followButton: {
-        width: screenWidth - 40,
-        padding: 10,
-        borderRadius: 5,
-        alignItems: 'center',
-        marginTop: 20,
+        alignSelf: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 16,
+        marginTop: 16,
     },
-    following: {
-        backgroundColor: 'grey',
+    followingButton: {
+        backgroundColor: 'gray',
     },
-    notFollowing: {
-        backgroundColor: '#B1EEDB',
+    notFollowingButton: {
+        backgroundColor: 'lightgray',
     },
     followButtonText: {
-        color: 'white',
-        fontSize: 16,
+        color: 'black',
     },
-    bottomNavigation: {
+    createPostButton: {
+        backgroundColor: 'lightgreen',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 16,
+        marginTop: 16,
+    },
+    createPostButtonText: {
+        color: 'black',
+    },
+    postContainer: {
+        padding: 16,
+        backgroundColor: 'black',
+        borderBottomColor: 'gray',
+        borderBottomWidth: 1,
+    },
+    postHeader: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        position: 'absolute',
-        bottom: 20,
-        left: 0,
-        right: 0,
-        paddingHorizontal: 20,
+        marginBottom: 8,
     },
-    iconContainer: {
-        alignItems: 'center',
-    },
-    iconImage: {
-        width: 35,
-        height: 35,
-    },
-    searchIconImage: {
-        width: 25,
-        height: 25,
-    },
-    profileImage: {
-        width: 30,
-        height: 30,
+    postGroupImage: {
+        width: 40,
+        height: 40,
         borderRadius: 20,
+        marginRight: 8,
+    },
+    postGroupName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'white',
+    },
+    postAuthor: {
+        fontSize: 12,
+        color: 'gray',
+        marginLeft: 'auto',
+    },
+    postImage: {
+        width: '100%',
+        height: screenWidth,
+        marginBottom: 8,
+    },
+    postContent: {
+        fontSize: 16,
+        color: 'white',
+    },
+    postFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    likeIcon: {
+        width: 24,
+        height: 24,
+    },
+    likeCount: {
+        color: 'white',
+        marginLeft: 8,
+        marginRight: 16,
+    },
+    commentButton: {
+        color: 'lightblue',
     },
     modalContainer: {
         flex: 1,
         justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    modalView: {
-        width: '80%',
+        padding: 16,
         backgroundColor: 'black',
-        borderRadius: 10,
-        padding: 20,
-        alignItems: 'center',
-        borderColor: 'black'
     },
     modalTitle: {
-        fontSize: 18,
+        fontSize: 24,
         fontWeight: 'bold',
-        marginBottom: 10,
-    },
-    textInput: {
-        width: '100%',
-        height: 100,
-        borderColor: '#ccc',
-        borderWidth: 1,
-        borderRadius: 5,
-        padding: 10,
-        marginBottom: 10,
-        textAlignVertical: 'top',
-        color: 'black',
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        marginTop: 10,
-    },
-    modalButton: {
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 5,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cancelButton: {
-        backgroundColor: 'red',
-    },
-    postButton: {
-        backgroundColor: '#B1EEDB',
-    },
-    modalButtonText: {
+        marginBottom: 16,
+        textAlign: 'center',
         color: 'white',
-        fontSize: 16,
+    },
+    modalInput: {
+        height: 100,
+        borderColor: 'gray',
+        borderWidth: 1,
+        marginBottom: 16,
+        padding: 8,
+        textAlignVertical: 'top',
+        color: 'white',
     },
     postImagePreview: {
         width: '100%',
-        height: 200,
-        borderRadius: 5,
-        marginTop: 10,
+        height: screenWidth,
+        marginBottom: 16,
+    },
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        paddingVertical: 10,
+        backgroundColor: 'black',
+        borderTopWidth: 1,
+        borderTopColor: 'gray',
+    },
+    footerIcon: {
+        width: 30,
+        height: 30,
     },
 });
 
