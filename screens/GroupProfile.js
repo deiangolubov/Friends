@@ -103,13 +103,10 @@ function GroupProfile({ route, navigation }) {
             const postsData = await Promise.all(
                 postsSnapshot.docs.map(async (postDoc) => {
                     const postData = postDoc.data();
-                    const authorDoc = await firestore().collection('users').doc(postData.authorId).get();
-                    const authorData = authorDoc.data();
                     const userLikedPost = await checkIfLiked(postDoc.id);
                     return {
                         id: postDoc.id,
                         ...postData,
-                        authorName: authorData ? authorData.username : 'Unknown',
                         userHasLiked: userLikedPost,
                     };
                 })
@@ -155,10 +152,13 @@ function GroupProfile({ route, navigation }) {
         if (postContent.trim() === '') return;
 
         try {
+            const userDoc = await firestore().collection('users').doc(userId).get();
+            const username = userDoc.data().username;
+
             await firestore().collection('groups').doc(groupId).collection('posts').add({
                 content: postContent,
                 imageUrl: postImage,
-                authorId: userId,
+                authorId: username,
                 likes: 0,
                 timestamp: firestore.FieldValue.serverTimestamp(),
             });
@@ -250,7 +250,7 @@ function GroupProfile({ route, navigation }) {
                         style={styles.postGroupImage}
                     />
                     <Text style={styles.postGroupName}>{group.name}</Text>
-                    <Text style={styles.postAuthor}>Posted by {item.authorName}</Text>
+                    <Text style={styles.postAuthor}>Posted by {item.authorId}</Text>
                 </View>
                 {item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.postImage} />}
                 <Text style={styles.postContent}>{item.content}</Text>
