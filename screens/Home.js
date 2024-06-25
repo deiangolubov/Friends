@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-
+import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
@@ -13,7 +12,7 @@ function Home({ navigation }) {
     const [profileImage, setProfileImage] = useState(null);
     const [user, setUser] = useState(null);
     const [name, setName] = useState('');
-    const [groupCount, setGroupCount] = useState(0);
+    const [posts, setPosts] = useState([]);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -33,13 +32,43 @@ function Home({ navigation }) {
             if (userData) {
                 setName(userData.username);
                 setProfileImage(userData.profileImage);
+                fetchPostsFromFollowedGroups(uid);
             }
-
-            const joinedGroupsSnapshot = await firestore().collection('users').doc(uid).collection('joinedGroups').get();
-            setGroupCount(joinedGroupsSnapshot.size);
         } catch (error) {
             console.error('Error fetching user data:', error);
         }
+    };
+
+    const fetchPostsFromFollowedGroups = async (uid) => {
+        try {
+            const joinedGroupsSnapshot = await firestore().collection('users').doc(uid).collection('joinedGroups').get();
+            const groupIds = joinedGroupsSnapshot.docs.map(doc => doc.id);
+
+            const postsData = [];
+            for (const groupId of groupIds) {
+                const groupPostsSnapshot = await firestore().collection('groups').doc(groupId).collection('posts').orderBy('timestamp', 'desc').get();
+                groupPostsSnapshot.docs.forEach(doc => {
+                    postsData.push({ id: doc.id, ...doc.data() });
+                });
+            }
+
+            setPosts(postsData.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis()));
+        } catch (error) {
+            console.error('Error fetching posts:', error);
+        }
+    };
+
+    const renderPost = ({ item }) => {
+        return (
+            <View style={styles.postContainer}>
+                <Text style={styles.postAuthor}>{item.authorId}</Text>
+                {item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.postImage} />}
+                <Text style={styles.postContent}>{item.content}</Text>
+                <View style={styles.postFooter}>
+                    <Text style={styles.likeCount}>Likes: {item.likes}</Text>
+                </View>
+            </View>
+        );
     };
 
     const goToHome = () => {
@@ -58,30 +87,14 @@ function Home({ navigation }) {
         navigation.navigate('Chat');
     };
 
-    const joinGroup = () => {
-        navigation.navigate('JoinGroup');
-    };
-
-    const createGroup = () => {
-        navigation.navigate('CreateGroup');
-    };
-
     return (
         <View style={styles.container}>
-            {groupCount < 1 ? (
-                <View style={styles.messageContainer}>
-                    <Text style={styles.noGroupText}>You are not part of any group.</Text>
-                    <TouchableOpacity onPress={joinGroup}>
-                        <Text style={styles.linkText}>Join a group</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.noGroupText}> or </Text>
-                    <TouchableOpacity onPress={createGroup}>
-                        <Text style={styles.linkText}>Create a new group</Text>
-                    </TouchableOpacity>
-                </View>
-            ) : (
-                <Text style={styles.noGroupText}>Part of one or more groups</Text>
-            )}
+            <FlatList
+                data={posts}
+                renderItem={renderPost}
+                keyExtractor={item => item.id}
+                contentContainerStyle={styles.postsList}
+            />
             <View style={styles.bottomNavigation}>
                 <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
                     <Image source={homeImg} style={styles.iconImage} />
@@ -108,7 +121,34 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'black',
-        alignItems: 'center',
+    },
+    postsList: {
+        padding: 10,
+    },
+    postContainer: {
+        backgroundColor: '#333',
+        padding: 10,
+        borderRadius: 5,
+        marginBottom: 10,
+    },
+    postAuthor: {
+        color: 'white',
+        fontWeight: 'bold',
+    },
+    postImage: {
+        width: '100%',
+        height: 200,
+        marginTop: 10,
+    },
+    postContent: {
+        color: 'white',
+        marginTop: 10,
+    },
+    postFooter: {
+        marginTop: 10,
+    },
+    likeCount: {
+        color: 'white',
     },
     bottomNavigation: {
         flexDirection: 'row',
@@ -135,21 +175,6 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 20,
-    },
-    noGroupText: {
-        color: 'white',
-        marginBottom: 10,
-        textAlign: 'center',
-        marginTop: 10,
-    },
-    messageContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        flex: 1,
-    },
-    linkText: {
-        color: '#B1EEDB',
-        marginTop: 5,
     },
 });
 
