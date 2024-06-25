@@ -241,6 +241,10 @@ function GroupProfile({ route, navigation }) {
         navigation.navigate('Chat');
     };
 
+    const goToComments = (postId) => {
+        navigation.navigate('Comments', { postId, groupId, userId });
+    };
+    
     const renderPost = ({ item }) => {
         return (
             <View style={styles.postContainer}>
@@ -262,8 +266,8 @@ function GroupProfile({ route, navigation }) {
                         />
                     </TouchableOpacity>
                     <Text style={styles.likeCount}>{item.likes}</Text>
-                    <TouchableOpacity>
-                        <Text style={styles.commentButton}>Comment</Text>
+                    <TouchableOpacity onPress={() => goToComments(item.id)}>
+                        <Text style={styles.commentButton}>Comments</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -313,7 +317,7 @@ function GroupProfile({ route, navigation }) {
                             </TouchableOpacity>
                         </>
                     }
-                    contentContainerStyle={{ paddingBottom: 100 }} // Add padding to prevent overlap with the bottom bar
+                    contentContainerStyle={{ paddingBottom: 100 }} 
                 />
                 <Modal visible={isModalVisible} animationType="slide">
                     <View style={styles.modalContainer}>
@@ -479,7 +483,7 @@ const styles = StyleSheet.create({
         marginRight: 16,
     },
     commentButton: {
-        color: 'lightblue',
+        color: 'white',
     },
     modalContainer: {
         flex: 1,
