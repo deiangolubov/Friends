@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity, FlatList } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
@@ -7,18 +7,23 @@ import homeImg from '../img/currentHome.png';
 import searchImg from '../img/searchImg2.png';
 import defaultpfp from '../img/defaultpfp.png';
 import chat from '../img/chat.png';
+import defaultGroupImage from '../img/defaultpfp.png';
+
+const screenWidth = Dimensions.get('window').width;
 
 function Home({ navigation }) {
     const [profileImage, setProfileImage] = useState(null);
     const [user, setUser] = useState(null);
     const [name, setName] = useState('');
     const [posts, setPosts] = useState([]);
+    const [userId, setuserId] = useState(null);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
             setUser(user);
             if (user) {
                 fetchUserData(user.uid);
+                setuserId(user.uid);
             }
         });
 
@@ -46,9 +51,12 @@ function Home({ navigation }) {
 
             const postsData = [];
             for (const groupId of groupIds) {
+                const groupDoc = await firestore().collection('groups').doc(groupId).get();
+                const groupData = groupDoc.data();
+
                 const groupPostsSnapshot = await firestore().collection('groups').doc(groupId).collection('posts').orderBy('timestamp', 'desc').get();
                 groupPostsSnapshot.docs.forEach(doc => {
-                    postsData.push({ id: doc.id, ...doc.data() });
+                    postsData.push({ id: doc.id, ...doc.data(), groupId, groupProfileImage: groupData.profileImage, groupName: groupData.name });
                 });
             }
 
@@ -58,14 +66,55 @@ function Home({ navigation }) {
         }
     };
 
+    const handleLikeToggle = async (postId, currentLikes, userHasLiked, groupId, userId) => {
+        try {
+            const postRef = firestore().collection('groups').doc(groupId).collection('posts').doc(postId);
+            await firestore().runTransaction(async (transaction) => {
+                const postDoc = await transaction.get(postRef);
+                const newLikes = userHasLiked ? currentLikes - 1 : currentLikes + 1;
+                transaction.update(postRef, { likes: newLikes });
+
+                const userLikedPostRef = firestore().collection('users').doc(userId).collection('likedPosts').doc(postId);
+                if (!userHasLiked) {
+                    transaction.set(userLikedPostRef, { liked: true });
+                } else {
+                    transaction.delete(userLikedPostRef);
+                }
+            });
+
+            setPosts((prevPosts) =>
+                prevPosts.map((post) =>
+                    post.id === postId
+                        ? { ...post, likes: userHasLiked ? post.likes - 1 : post.likes + 1, userHasLiked: !userHasLiked }
+                        : post
+                )
+            );
+        } catch (error) {
+            console.error('Error toggling like status:', error);
+        }
+    };
+
     const renderPost = ({ item }) => {
         return (
             <View style={styles.postContainer}>
-                <Text style={styles.postAuthor}>{item.authorId}</Text>
+                <View style={styles.postHeader}>
+                    <Image source={item.groupProfileImage ? { uri: item.groupProfileImage } : defaultGroupImage} style={styles.postGroupImage} />
+                    <Text style={styles.postGroupName}>{item.groupName}</Text>
+                    <Text style={styles.postAuthor}>Posted by {item.authorId}</Text>
+                </View>
                 {item.imageUrl && <Image source={{ uri: item.imageUrl }} style={styles.postImage} />}
                 <Text style={styles.postContent}>{item.content}</Text>
                 <View style={styles.postFooter}>
-                    <Text style={styles.likeCount}>Likes: {item.likes}</Text>
+                    <TouchableOpacity onPress={() => handleLikeToggle(item.id, item.likes, item.userHasLiked, item.groupId, userId)}>
+                        <Image
+                            source={item.userHasLiked ? require('../img/heart-filled.png') : require('../img/heart-empty.png')}
+                            style={styles.likeIcon}
+                        />
+                    </TouchableOpacity>
+                    <Text style={styles.likeCount}>{item.likes}</Text>
+                    <TouchableOpacity onPress={() => goToComments(item.id, item.groupId, userId)}>
+                        <Text style={styles.commentButton}>Comments</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
         );
@@ -85,6 +134,10 @@ function Home({ navigation }) {
 
     const goToChat = () => {
         navigation.navigate('Chat');
+    };
+
+    const goToComments = (postId, groupId) => {
+        navigation.navigate('Comments', { postId, groupId, userId });
     };
 
     return (
@@ -126,28 +179,55 @@ const styles = StyleSheet.create({
         padding: 10,
     },
     postContainer: {
-        backgroundColor: '#333',
-        padding: 10,
-        borderRadius: 5,
-        marginBottom: 10,
+        padding: 16,
+        backgroundColor: 'black',
+        borderBottomColor: 'gray',
+        borderBottomWidth: 1,
+    },
+    postHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    postGroupImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 8,
+    },
+    postGroupName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'white',
     },
     postAuthor: {
-        color: 'white',
-        fontWeight: 'bold',
+        fontSize: 12,
+        color: 'gray',
+        marginLeft: 'auto',
     },
     postImage: {
         width: '100%',
-        height: 200,
-        marginTop: 10,
+        height: screenWidth,
+        marginBottom: 8,
+    },
+    likeIcon: {
+        width: 24,
+        height: 24,
     },
     postContent: {
+        fontSize: 16,
         color: 'white',
-        marginTop: 10,
     },
     postFooter: {
-        marginTop: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     likeCount: {
+        color: 'white',
+        marginLeft: 8,
+        marginRight: 16,
+    },
+    commentButton: {
         color: 'white',
     },
     bottomNavigation: {
