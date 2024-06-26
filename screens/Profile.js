@@ -123,8 +123,8 @@ function Profile({ navigation }) {
             await firestore().collection('users').doc(user.uid).update({
                 bio: newBio
             });
-            setBio(newBio); // Update local state with new bio
-            setEditBio(false); // Disable bio editing mode
+            setBio(newBio); 
+            setEditBio(false); 
         } catch (error) {
             console.error('Error saving bio:', error);
         }
@@ -260,7 +260,7 @@ function Profile({ navigation }) {
                             key={group.id} 
                             style={styles.groupItem}
                             onPress={() => {
-                                setModalVisible(false);
+                                setGroupModal(false);
                                 navigation.navigate('GroupProfile', { groupId: group.id, userId: user.uid});
                             }} 
                             >

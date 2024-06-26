@@ -77,14 +77,9 @@ function GroupProfile({ route, navigation }) {
 
     const checkIfLiked = async (postId) => {
         try {
-            const likedPostDoc = await firestore()
-                .collection('users')
-                .doc(userId)
-                .collection('likedPosts')
-                .doc(postId)
-                .get();
-
-            return likedPostDoc.exists;
+            const postDoc = await firestore().collection('groups').doc(groupId).collection('posts').doc(postId).get();
+            const likers = postDoc.data().likers || [];
+            return likers.includes(userId);
         } catch (error) {
             console.error('Error checking if post is liked:', error);
             return false;
@@ -160,6 +155,7 @@ function GroupProfile({ route, navigation }) {
                 imageUrl: postImage,
                 authorId: username,
                 likes: 0,
+                likers: [],
                 timestamp: firestore.FieldValue.serverTimestamp(),
             });
 
@@ -185,24 +181,12 @@ function GroupProfile({ route, navigation }) {
             const postRef = firestore().collection('groups').doc(groupId).collection('posts').doc(postId);
             await firestore().runTransaction(async (transaction) => {
                 const postDoc = await transaction.get(postRef);
-                const newLikes = userHasLiked ? currentLikes - 1 : currentLikes + 1;
-                transaction.update(postRef, { likes: newLikes });
-
-                if (!userHasLiked) {
-                    const userLikedPostRef = firestore()
-                        .collection('users')
-                        .doc(userId)
-                        .collection('likedPosts')
-                        .doc(postId);
-                    transaction.set(userLikedPostRef, { liked: true });
-                } else {
-                    const userLikedPostRef = firestore()
-                        .collection('users')
-                        .doc(userId)
-                        .collection('likedPosts')
-                        .doc(postId);
-                    transaction.delete(userLikedPostRef);
-                }
+                const postData = postDoc.data();
+                const newLikers = userHasLiked
+                    ? postData.likers.filter((uid) => uid !== userId)
+                    : [...postData.likers, userId];
+                const newLikes = newLikers.length;
+                transaction.update(postRef, { likes: newLikes, likers: newLikers });
             });
 
             setPosts((prevPosts) =>
