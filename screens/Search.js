@@ -63,9 +63,15 @@ function Search({ navigation }) {
         try {
             const groupsSnapshot = await firestore().collection('groups').where('public', '==', true).get();
             const groups = groupsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            const postsPromises = groups.map(async (group) => {
-                const postsSnapshot = await firestore().collection('groups').doc(group.id).collection('posts').get();
+    
+            let allPosts = [];
+    
+            for (const group of groups) {
+                const postsSnapshot = await firestore().collection('groups').doc(group.id)
+                    .collection('posts')
+                    .orderBy('timestamp', 'desc')
+                    .get();
+                
                 const groupPosts = postsSnapshot.docs.map(doc => ({
                     id: doc.id,
                     groupId: group.id,
@@ -76,13 +82,15 @@ function Search({ navigation }) {
                     content: doc.data().content,
                     likes: doc.data().likes,
                     likers: doc.data().likers,
+                    timestamp: doc.data().timestamp.toDate(),
                 }));
-                return groupPosts;
-            });
-
-            const allPosts = await Promise.all(postsPromises);
-            const flattenedPosts = allPosts.flat();
-            setPosts(flattenedPosts);
+    
+                allPosts = [...allPosts, ...groupPosts];
+            }
+    
+            allPosts.sort((a, b) => b.timestamp - a.timestamp);
+    
+            setPosts(allPosts); 
         } catch (error) {
             console.error('Error fetching posts:', error);
         }
@@ -225,14 +233,6 @@ function Search({ navigation }) {
                         </TouchableOpacity>
                     )}
                     ListEmptyComponent={<Text style={styles.noResultsText}>No groups found</Text>}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                            colors={['white']}
-                            progressBackgroundColor="black"
-                        />
-                    }
                 />
             )}
             <View style={styles.bottomNavigation}>

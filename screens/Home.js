@@ -35,24 +35,24 @@ function Home({ navigation }) {
         try {
             const userDoc = await firestore().collection('users').doc(uid).get();
             const userData = userDoc.data();
-
+    
             if (userData) {
                 setName(userData.username);
                 setProfileImage(userData.profileImage);
             }
-
+    
             const joinedGroupsSnapshot = await firestore().collection('users').doc(uid).collection('joinedGroups').get();
             const groups = joinedGroupsSnapshot.docs.map(doc => doc.id);
-
+    
             const groupsPromises = groups.map(async (groupId) => {
                 const groupDoc = await firestore().collection('groups').doc(groupId).get();
                 return { id: groupId, ...groupDoc.data() };
             });
-
+    
             const groupsData = await Promise.all(groupsPromises);
             setUserGroupsInfo(groupsData);
             setGroupCount(groupsData.length);
-
+    
             const postsPromises = groupsData.map(async (group) => {
                 const postsSnapshot = await firestore().collection('groups').doc(group.id).collection('posts').get();
                 const groupPosts = postsSnapshot.docs.map(doc => ({
@@ -65,13 +65,18 @@ function Home({ navigation }) {
                     content: doc.data().content,
                     likes: doc.data().likes,
                     likers: doc.data().likers,
+                    timestamp: doc.data().timestamp.toDate(),
                 }));
                 return groupPosts;
             });
-
+    
             const allPosts = await Promise.all(postsPromises);
             const flattenedPosts = allPosts.flat();
+    
+            flattenedPosts.sort((a, b) => b.timestamp - a.timestamp);
+    
             setPosts(flattenedPosts);
+    
         } catch (error) {
             console.error('Error fetching user data:', error);
         }
