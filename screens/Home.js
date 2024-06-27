@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet,Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
 
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
@@ -55,6 +55,7 @@ function Home({ navigation }) {
             const postsPromises = groupsData.map(async (group) => {
                 const postsSnapshot = await firestore().collection('groups').doc(group.id).collection('posts').get();
                 const groupPosts = postsSnapshot.docs.map(doc => ({
+                    id: doc.id,
                     groupId: group.id,
                     groupName: group.name,
                     groupProfileImage: group.profileImage,
@@ -91,17 +92,54 @@ function Home({ navigation }) {
         navigation.navigate('Chat');
     };
 
-    const handleLikeToggle = () => {
-        console.log("?");
-    }
+    const handleLikeToggle = async (post) => {
+        if (!user) return;
 
-    const goToComments = () => {
-        console.log("?");
-    }
+        const postRef = firestore().collection('groups').doc(post.groupId).collection('posts').doc(post.id);
+        const postDoc = await postRef.get();
+        const postData = postDoc.data();
+
+        if (!postData) return;
+
+        let newLikes = postData.likes;
+        let newLikers = [...postData.likers];
+
+        if (newLikers.includes(user.uid)) {
+            newLikers = newLikers.filter(uid => uid !== user.uid);
+            newLikes -= 1;
+        } else {
+            newLikers.push(user.uid);
+            newLikes += 1;
+        }
+
+        await postRef.update({
+            likes: newLikes,
+            likers: newLikers
+        });
+
+        setPosts(posts.map(p => {
+            if (p.id === post.id) {
+                return {
+                    ...p,
+                    likes: newLikes,
+                    likers: newLikers
+                };
+            }
+            return p;
+        }));
+    };
+
+    const goToComments = (postId, groupId) => {
+        navigation.navigate('Comments', {
+            postId,
+            groupId,
+            userId: user.uid,
+        });
+    };
 
     return (
         <View style={styles.container}>
-            <View style={styles.postsContainer}>
+            <ScrollView contentContainerStyle={styles.postsContainer}>
                 {posts.map((post, index) => (
                     <View key={index} style={styles.postContainer}>
                         <View style={styles.postHeader}>
@@ -114,20 +152,20 @@ function Home({ navigation }) {
                         {post.postImage && <Image source={{ uri: post.postImage }} style={styles.postImage} />}
                         <Text style={styles.postContent}>{post.content}</Text>
                         <View style={styles.postFooter}>
-                        <TouchableOpacity onPress={() => handleLikeToggle(post.groupId, post.likes, /*item.userHasLiked*/)}>
-                            <Image
-                                source={/*item.userHasLiked*/1 ? require('../img/heart-filled.png') : require('../img/heart-empty.png')}
-                                style={styles.likeIcon}
-                            />
-                        </TouchableOpacity>
-                        <Text style={styles.likeCount}>{post.likes}</Text>
-                            <TouchableOpacity onPress={() => goToComments(post.groupId)}>
+                            <TouchableOpacity onPress={() => handleLikeToggle(post)}>
+                                <Image
+                                    source={post.likers.includes(user?.uid) ? require('../img/heart-filled.png') : require('../img/heart-empty.png')}
+                                    style={styles.likeIcon}
+                                />
+                            </TouchableOpacity>
+                            <Text style={styles.likeCount}>{post.likes}</Text>
+                            <TouchableOpacity onPress={() => goToComments(post.id, post.groupId)}>
                                 <Text style={styles.commentButton}>Comments</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 ))}
-            </View>
+            </ScrollView>
             <View style={styles.bottomNavigation}>
                 <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
                     <Image source={homeImg} style={styles.iconImage} />
@@ -154,17 +192,20 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'black',
-        alignItems: 'center',
     },
     bottomNavigation: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         position: 'absolute',
-        bottom: 20,
+        bottom: 0,
         left: 0,
         right: 0,
         paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: 'black',
+        borderTopWidth: 1,
+        borderTopColor: 'gray',
     },
     iconContainer: {
         alignItems: 'center',
@@ -200,6 +241,10 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 20,
+    },
+    postsContainer: {
+        paddingBottom: 70, // Add padding to prevent overlap with the bottom navigation bar
+        alignItems: 'center',
     },
     postContainer: {
         marginBottom: 20,
