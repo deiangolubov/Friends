@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, Image, StyleSheet, TextInput, Dimensions, TouchableOpacity, FlatList } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
@@ -8,12 +8,16 @@ import searchImg from '../img/currentSearch.png';
 import defaultpfp from '../img/defaultpfp.png';
 import chat from '../img/chat.png';
 
+const screenWidth = Dimensions.get('window').width;
+
 function Search({ navigation }) {
     const [profileImage, setProfileImage] = useState(null);
     const [user, setUser] = useState(null);
     const [name, setName] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
+    const [posts, setPosts] = useState([]);
+    const [groups, setGroups] = useState([]);
+    const [filteredGroups, setFilteredGroups] = useState([]);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -24,6 +28,11 @@ function Search({ navigation }) {
         });
 
         return unsubscribe;
+    }, []);
+
+    useEffect(() => {
+        fetchAllGroups();
+        fetchAllPosts();
     }, []);
 
     const fetchUserData = async (uid) => {
@@ -39,22 +48,100 @@ function Search({ navigation }) {
         }
     };
 
-    const handleSearch = async (query) => {
-        setSearchQuery(query);
-        if (query.length > 0) {
-            try {
-                const groupsQuerySnapshot = await firestore()
-                    .collection('groups')
-                    .where('name', '>=', query)
-                    .where('name', '<=', query + '\uf8ff')
-                    .get();
-                const groups = groupsQuerySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setSearchResults(groups);
-            } catch (error) {
-                console.error('Error searching for groups:', error);
-            }
+    const fetchAllGroups = async () => {
+        try {
+            const groupsSnapshot = await firestore().collection('groups').where('visible', '==', true).get();
+            const fetchedGroups = groupsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setGroups(fetchedGroups);
+        } catch (error) {
+            console.error('Error fetching groups:', error);
+        }
+    };
+
+    const fetchAllPosts = async () => {
+        try {
+            const groupsSnapshot = await firestore().collection('groups').where('public', '==', true).get();
+            const groups = groupsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+            const postsPromises = groups.map(async (group) => {
+                const postsSnapshot = await firestore().collection('groups').doc(group.id).collection('posts').get();
+                const groupPosts = postsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    groupId: group.id,
+                    groupName: group.name,
+                    groupProfileImage: group.profileImage,
+                    authorId: doc.data().authorId,
+                    postImage: doc.data().imageUrl,
+                    content: doc.data().content,
+                    likes: doc.data().likes,
+                    likers: doc.data().likers,
+                }));
+                return groupPosts;
+            });
+    
+            const allPosts = await Promise.all(postsPromises);
+            const flattenedPosts = allPosts.flat();
+            setPosts(flattenedPosts);
+        } catch (error) {
+            console.error('Error fetching posts:', error);
+        }
+    };
+
+    const handleLikeToggle = async (post) => {
+        if (!user) return;
+
+        const postRef = firestore().collection('groups').doc(post.groupId).collection('posts').doc(post.id);
+        const postDoc = await postRef.get();
+        const postData = postDoc.data();
+
+        if (!postData) return;
+
+        let newLikes = postData.likes;
+        let newLikers = [...postData.likers];
+
+        if (newLikers.includes(user.uid)) {
+            newLikers = newLikers.filter(uid => uid !== user.uid);
+            newLikes -= 1;
         } else {
-            setSearchResults([]);
+            newLikers.push(user.uid);
+            newLikes += 1;
+        }
+
+        await postRef.update({
+            likes: newLikes,
+            likers: newLikers
+        });
+
+        setPosts(posts.map(p => {
+            if (p.id === post.id) {
+                return {
+                    ...p,
+                    likes: newLikes,
+                    likers: newLikers
+                };
+            }
+            return p;
+        }));
+    };
+
+    const handleSearch = async (text) => {
+        setSearchQuery(text);
+
+        if (text.trim() === '') {
+            fetchAllPosts();
+            setFilteredGroups([]);
+        } else {
+            try {
+                const groupsSnapshot = await firestore().collection('groups')
+                    .where('name', '>=', text.trim())
+                    .where('name', '<=', text.trim() + '\uf8ff')
+                    .where('visible', '==', true)
+                    .get();
+                const fetchedGroups = groupsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setFilteredGroups(fetchedGroups);
+            } catch (error) {
+                console.error('Error fetching groups:', error);
+            }
         }
     };
 
@@ -74,10 +161,6 @@ function Search({ navigation }) {
         navigation.navigate('Chat');
     };
 
-    const goToGroupProfile = (group) => {
-        navigation.navigate('GroupProfile', { groupId: group.id, userId: user.uid});
-    };
-
     return (
         <View style={styles.container}>
             <TextInput
@@ -85,25 +168,53 @@ function Search({ navigation }) {
                 placeholder="Search for groups"
                 placeholderTextColor="#888"
                 value={searchQuery}
-                onChangeText={handleSearch}
+                onChangeText={(text) => handleSearch(text)} 
             />
-            {searchQuery.length > 0 ? (
+            {searchQuery.trim() === '' ? (
                 <FlatList
-                    data={searchResults}
-                    keyExtractor={(item, index) => item.id}
+                    data={posts}
+                    keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
-                        <TouchableOpacity style={styles.groupItem} onPress={() => goToGroupProfile(item)}>
-                            <Image
-                                source={{ uri: item.profileImage || 'https://via.placeholder.com/150' }}
-                                style={styles.groupImage}
-                            />
-                            <Text style={styles.groupName}>{item.name}</Text>
+                        <View style={styles.postContainer}>
+                            <View style={styles.postHeader}>
+                                <View style={styles.groupInfo}>
+                                    <Image source={{ uri: item.groupProfileImage }} style={styles.groupProfileImage} />
+                                    <Text style={styles.groupName}>{item.groupName}</Text>
+                                </View>
+                                <Text style={styles.postAuthor}>Posted by {item.authorId}</Text>
+                            </View>
+                            {item.postImage && <Image source={{ uri: item.postImage }} style={styles.postImage} />}
+                            <Text style={styles.postContent}>{item.content}</Text>
+                            <View style={styles.postFooter}>
+                                <TouchableOpacity onPress={() => handleLikeToggle(item)}>
+                                    <Image
+                                        source={item.likers.includes(user?.uid) ? require('../img/heart-filled.png') : require('../img/heart-empty.png')}
+                                        style={styles.likeIcon}
+                                    />
+                                </TouchableOpacity>
+                                <Text style={styles.likeCount}>{item.likes}</Text>
+                                <TouchableOpacity onPress={() => navigation.navigate('Comments', { postId: item.id, groupId: item.groupId, userId: user.uid })}>
+                                    <Text style={styles.commentButton}>Comments</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
+                    ListEmptyComponent={<Text style={styles.noResultsText}>No posts found</Text>}
+                />
+            ) : (
+                <FlatList
+                    data={filteredGroups}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: item.id, userId: user.uid})}>
+                            <View style={styles.groupContainer}>
+                                <Image source={{ uri: item.profileImage }} style={styles.groupProfileImage} />
+                                <Text style={styles.groupName}>{item.name}</Text>
+                            </View>
                         </TouchableOpacity>
                     )}
                     ListEmptyComponent={<Text style={styles.noResultsText}>No groups found</Text>}
                 />
-            ) : (
-                <Text style={styles.searchPrompt}></Text>
             )}
             <View style={styles.bottomNavigation}>
                 <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
@@ -143,26 +254,77 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         marginBottom: 20,
     },
-    groupItem: {
+    postContainer: {
+        marginBottom: 5,
+        width: screenWidth,
+        padding: 16,
+        backgroundColor: 'black',
+        borderBottomColor: 'gray',
+        borderBottomWidth: 1,
+    },
+    groupContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 10,
+        padding: 10,
+        backgroundColor: 'black',
+        borderBottomColor: 'gray',
+        borderBottomWidth: 1,
     },
-    groupImage: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        marginRight: 10,
+    postHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    groupInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    groupProfileImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 8,
     },
     groupName: {
-        color: 'white',
         fontSize: 16,
+        fontWeight: 'bold',
+        color: 'white',
+    },
+    postAuthor: {
+        fontSize: 12,
+        color: 'gray',
+        marginLeft: 'auto',
+    },
+    postImage: {
+        width: '100%',
+        height: 280,
+        borderRadius: 10,
+    },
+    postContent: {
+        fontSize: 16,
+        color: 'white',
+    },
+    postFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    likeIcon: {
+        width: 24,
+        height: 24,
+        top: 10,
+    },
+    likeCount: {
+        color: 'white',
+        marginLeft: 8,
+        marginRight: 16,
+        top: 7,
+    },
+    commentButton: {
+        color: 'white',
+        top: 7,
     },
     noResultsText: {
-        color: 'gray',
-        marginTop: 20,
-    },
-    searchPrompt: {
         color: 'gray',
         marginTop: 20,
     },
@@ -171,10 +333,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         position: 'absolute',
-        bottom: 20,
+        bottom: 0,
         left: 0,
         right: 0,
         paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: 'black',
+        borderTopWidth: 1,
+        borderTopColor: 'gray',
     },
     iconContainer: {
         alignItems: 'center',
@@ -191,10 +357,6 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 20,
-    },
-    groupsStyles: {
-        marginLeft: 50,
-        top: -20,
     },
 });
 

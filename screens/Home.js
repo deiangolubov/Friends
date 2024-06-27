@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
     },
     postsContainer: {
-        paddingBottom: 70, // Add padding to prevent overlap with the bottom navigation bar
+        paddingBottom: 70,
         alignItems: 'center',
     },
     postContainer: {
