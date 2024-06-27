@@ -83,9 +83,6 @@ function Home({ navigation }) {
         setRefreshing(false);
     }, [user]);
 
-    const goToHome = () => {
-        console.log('already on home');
-    };
 
     const goToSearch = () => {
         navigation.navigate('Search');
@@ -184,7 +181,7 @@ function Home({ navigation }) {
                 ))}
             </ScrollView>
             <View style={styles.bottomNavigation}>
-                <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
+                <TouchableOpacity onPress={onRefresh} style={styles.iconContainer}>
                     <Image source={homeImg} style={styles.iconImage} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToSearch} style={styles.iconContainer}>

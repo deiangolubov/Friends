@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TextInput, Dimensions, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, Image, StyleSheet, TextInput, Dimensions, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
@@ -18,6 +18,7 @@ function Search({ navigation }) {
     const [posts, setPosts] = useState([]);
     const [groups, setGroups] = useState([]);
     const [filteredGroups, setFilteredGroups] = useState([]);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -62,7 +63,7 @@ function Search({ navigation }) {
         try {
             const groupsSnapshot = await firestore().collection('groups').where('public', '==', true).get();
             const groups = groupsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    
+
             const postsPromises = groups.map(async (group) => {
                 const postsSnapshot = await firestore().collection('groups').doc(group.id).collection('posts').get();
                 const groupPosts = postsSnapshot.docs.map(doc => ({
@@ -78,7 +79,7 @@ function Search({ navigation }) {
                 }));
                 return groupPosts;
             });
-    
+
             const allPosts = await Promise.all(postsPromises);
             const flattenedPosts = allPosts.flat();
             setPosts(flattenedPosts);
@@ -145,12 +146,14 @@ function Search({ navigation }) {
         }
     };
 
-    const goToHome = () => {
-        navigation.navigate('Home');
-    };
+    const onRefresh = React.useCallback(async () => {
+        setRefreshing(true);
+        await fetchUserData(user.uid);
+        setRefreshing(false);
+    }, [user]);
 
-    const goToSearch = () => {
-        console.log('on search already');
+    const goToHome = () => {
+        navigation.navigate('Home')
     };
 
     const goToProfile = () => {
@@ -168,7 +171,7 @@ function Search({ navigation }) {
                 placeholder="Search for groups"
                 placeholderTextColor="#888"
                 value={searchQuery}
-                onChangeText={(text) => handleSearch(text)} 
+                onChangeText={(text) => handleSearch(text)}
             />
             {searchQuery.trim() === '' ? (
                 <FlatList
@@ -200,13 +203,21 @@ function Search({ navigation }) {
                         </View>
                     )}
                     ListEmptyComponent={<Text style={styles.noResultsText}>No posts found</Text>}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={['white']}
+                            progressBackgroundColor="black"
+                        />
+                    }
                 />
             ) : (
                 <FlatList
                     data={filteredGroups}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
-                        <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: item.id, userId: user.uid})}>
+                        <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: item.id, userId: user.uid })}>
                             <View style={styles.groupContainer}>
                                 <Image source={{ uri: item.profileImage }} style={styles.groupProfileImage} />
                                 <Text style={styles.groupName}>{item.name}</Text>
@@ -214,13 +225,21 @@ function Search({ navigation }) {
                         </TouchableOpacity>
                     )}
                     ListEmptyComponent={<Text style={styles.noResultsText}>No groups found</Text>}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={['white']}
+                            progressBackgroundColor="black"
+                        />
+                    }
                 />
             )}
             <View style={styles.bottomNavigation}>
                 <TouchableOpacity onPress={goToHome} style={styles.iconContainer}>
                     <Image source={homeImg} style={styles.iconImage} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={goToSearch} style={styles.iconContainer}>
+                <TouchableOpacity onPress={onRefresh} style={styles.iconContainer}>
                     <Image source={searchImg} style={styles.searchIconImage} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToChat} style={styles.iconContainer}>
