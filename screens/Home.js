@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
@@ -18,6 +18,7 @@ function Home({ navigation }) {
     const [groupCount, setGroupCount] = useState(0);
     const [userGroupsInfo, setUserGroupsInfo] = useState([]);
     const [posts, setPosts] = useState([]);
+    const [refreshing, setRefreshing] = useState(false); 
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -75,6 +76,12 @@ function Home({ navigation }) {
             console.error('Error fetching user data:', error);
         }
     };
+
+    const onRefresh = React.useCallback(async () => {
+        setRefreshing(true);
+        await fetchUserData(user.uid); 
+        setRefreshing(false);
+    }, [user]);
 
     const goToHome = () => {
         console.log('already on home');
@@ -139,7 +146,17 @@ function Home({ navigation }) {
 
     return (
         <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.postsContainer}>
+            <ScrollView
+                contentContainerStyle={styles.postsContainer}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={['white']} 
+                        progressBackgroundColor="black" 
+                    />
+                }
+            >
                 {posts.map((post, index) => (
                     <View key={index} style={styles.postContainer}>
                         <View style={styles.postHeader}>

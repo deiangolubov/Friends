@@ -275,7 +275,7 @@ function Profile({ navigation }) {
                         </TouchableOpacity>
                         ))}
                         <TouchableOpacity
-                            style={{ ...styles.modalOption, backgroundColor: "#B1EEDB" }}
+                            style={{ ...styles.modalOption, backgroundColor: "lightgreen", marginTop: 100}}
                             onPress={() => setGroupModal(!groupModal)}
                         >
                             <Text style={styles.modalText}>Close</Text>
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
         color: 'white',
     },
     modalOption: {
-        marginBottom: 10,
+        marginBottom: 20,
         padding: 50,
         width: 50,
         alignItems: "center",
@@ -421,6 +421,7 @@ const styles = StyleSheet.create({
     modalText: {
         marginBottom: 15,
         textAlign: "center",
+        fontSize: 20,
     },
     modalOption: {
         marginBottom: 10,
