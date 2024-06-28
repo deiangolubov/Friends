@@ -162,7 +162,7 @@ function Home({ navigation }) {
                 {posts.map((post, index) => (
                     <View key={index} style={styles.postContainer}>
                         <View style={styles.postHeader}>
-                        <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: post.groupId, userId: user.uid })}>
+                        <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: post.groupId, userId: user.uid, name: name})}>
                             <View style={styles.groupInfo}>
                                     <Image source={{ uri: post.groupProfileImage }} style={styles.groupProfileImage} />
                                     <Text style={styles.groupName}>{post.groupName}</Text>

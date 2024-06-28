@@ -227,7 +227,7 @@ function Search({ navigation }) {
                     data={filteredGroups}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
-                        <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: item.id, userId: user.uid })}>
+                        <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: item.id, userId: user.uid, name: name})}>
                             <View style={styles.groupContainer}>
                                 <Image source={{ uri: item.profileImage }} style={styles.groupProfileImage} />
                                 <Text style={styles.groupName}>{item.name}</Text>

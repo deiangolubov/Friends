@@ -12,16 +12,18 @@ import defaultpfp from '../img/defaultpfp.png';
 const screenWidth = Dimensions.get('window').width;
 
 function GroupProfile({ route, navigation }) {
-    const { groupId, userId } = route.params;
+    const { groupId, userId, name} = route.params;
     const [group, setGroup] = useState(null);
     const [profileImage, setProfileImage] = useState(null);
     const [isFollowing, setIsFollowing] = useState(false);
     const [rightToPost, setRightToPost] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [optionsModal, setOptionsModal] = useState(false);
     const [postContent, setPostContent] = useState('');
     const [postImage, setPostImage] = useState(null);
     const [posts, setPosts] = useState([]);
     const [numberOfPosts, setNumberOfPosts] = useState(0);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
         const fetchGroupData = async () => {
@@ -29,6 +31,7 @@ function GroupProfile({ route, navigation }) {
                 const groupDoc = await firestore().collection('groups').doc(groupId).get();
                 if (groupDoc.exists) {
                     setGroup(groupDoc.data());
+                    setIsAdmin(groupDoc.data().admin === name);
                 }
             } catch (error) {
                 console.error('Error fetching group data:', error);
@@ -68,13 +71,13 @@ function GroupProfile({ route, navigation }) {
             }
         };
 
-        fetchGroupData();
         if (userId) {
             fetchProfileImage(userId);
             checkIfFollowing();
         }
+        fetchGroupData();
         fetchPosts();
-    }, [groupId, userId]);
+    }, [groupId, userId, name]);
 
     const checkIfLiked = async (postId) => {
         try {
@@ -300,6 +303,14 @@ function GroupProfile({ route, navigation }) {
                                     {isFollowing ? 'Following' : 'Follow'}
                                 </Text>
                             </TouchableOpacity>
+                            {isAdmin && (
+                                <TouchableOpacity
+                                    style={styles.ellipsisButton}
+                                    onPress={() => setOptionsModal(true)}
+                                >
+                                    <Text style={styles.ellipsisText}>...</Text>
+                                </TouchableOpacity>
+                            )}
                         </>
                     }
                     contentContainerStyle={{ paddingBottom: 100 }} 
@@ -336,6 +347,13 @@ function GroupProfile({ route, navigation }) {
                             color="red"
                         />
                     </View>
+                </Modal>
+                <Modal visible={optionsModal} animationType="slide">
+                    <Button
+                            title="Cancel"
+                            onPress={() => setOptionsModal(false)}
+                            color="red"
+                        />
                 </Modal>
             </View>
             <View style={styles.footer}>
@@ -514,6 +532,15 @@ const styles = StyleSheet.create({
     footerIcon2: {
         width: 25,
         height: 25,
+    },
+    ellipsisButton: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+    },
+    ellipsisText: {
+        fontSize: 24,
+        color: 'white',
     },
 });
 

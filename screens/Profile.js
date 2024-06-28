@@ -261,7 +261,7 @@ function Profile({ navigation }) {
                             style={styles.groupItem}
                             onPress={() => {
                                 setGroupModal(false);
-                                navigation.navigate('GroupProfile', { groupId: group.id, userId: user.uid});
+                                navigation.navigate('GroupProfile', { groupId: group.id, userId: user.uid, name: name});
                             }} 
                             >
                             <Image source={{ uri: group.profileImage }} style={styles.groupImage} />
