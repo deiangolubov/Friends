@@ -61,6 +61,7 @@ function GroupProfile({ route, navigation }) {
                     setRightToPost(userJoinedGroups.data().rightToPost === 'Yes');
                 } else {
                     setIsFollowing(false);
+                    setRightToPost(false);
                 }
             } catch (error) {
                 console.error('Error checking if following group:', error);
@@ -108,7 +109,7 @@ function GroupProfile({ route, navigation }) {
             );
 
             setPosts(postsData);
-            const no = postsSnapshot.size
+            const no = postsSnapshot.size;
             setNumberOfPosts(no);
         } catch (error) {
             console.error('Error fetching posts:', error);
@@ -228,7 +229,7 @@ function GroupProfile({ route, navigation }) {
     const goToComments = (postId) => {
         navigation.navigate('Comments', { postId, groupId, userId });
     };
-    
+
     const renderPost = ({ item }) => {
         return (
             <View style={styles.postContainer}>
@@ -279,7 +280,7 @@ function GroupProfile({ route, navigation }) {
                             </View>
                             <View style={styles.groupInfo}>
                                 <Text style={styles.groupName}>{group.name}</Text>
-                                {rightToPost && (
+                                {isFollowing && rightToPost && (
                                     <TouchableOpacity
                                         style={styles.createPostButton}
                                         onPress={() => setIsModalVisible(true)}
