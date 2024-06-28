@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, Button, FlatList } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, Button, FlatList, Switch } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import { launchImageLibrary } from 'react-native-image-picker';
 import defaultGroupImage from '../img/defaultpfp.png';
@@ -24,6 +24,10 @@ function GroupProfile({ route, navigation }) {
     const [posts, setPosts] = useState([]);
     const [numberOfPosts, setNumberOfPosts] = useState(0);
     const [isAdmin, setIsAdmin] = useState(false);
+    
+    const [activeTab, setActiveTab] = useState('Options'); 
+    const [isPrivate, setIsPrivate] = useState(true); 
+    const [isVisible, setIsVisible] = useState(true); 
 
     useEffect(() => {
         const fetchGroupData = async () => {
@@ -233,6 +237,33 @@ function GroupProfile({ route, navigation }) {
         navigation.navigate('Comments', { postId, groupId, userId });
     };
 
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+    };
+
+    const togglePrivate = async () => {
+        try {
+            await firestore().collection('groups').doc(groupId).update({
+                public: !isPrivate,
+            });
+            setIsPrivate(!isPrivate);
+        } catch (error) {
+            console.error('Error updating private status:', error);
+        }
+    };
+    
+    const toggleVisible = async () => {
+        try {
+            await firestore().collection('groups').doc(groupId).update({
+                visible: !isVisible,
+            });
+            setIsVisible(!isVisible);
+        } catch (error) {
+            console.error('Error updating visibility status:', error);
+        }
+    };
+
+
     const renderPost = ({ item }) => {
         return (
             <View style={styles.postContainer}>
@@ -349,11 +380,51 @@ function GroupProfile({ route, navigation }) {
                     </View>
                 </Modal>
                 <Modal visible={optionsModal} animationType="slide">
-                    <Button
-                            title="Cancel"
-                            onPress={() => setOptionsModal(false)}
-                            color="red"
-                        />
+                    <View style={styles.modalContainer}>
+                        <View style={styles.tabButtons}>
+                            <TouchableOpacity
+                                style={[styles.tabButton, activeTab === 'Options' && styles.activeTab]}
+                                onPress={() => handleTabChange('Options')}
+                            >
+                                <Text style={styles.tabText}>Options</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.tabButton, activeTab === 'Requests' && styles.activeTab]}
+                                onPress={() => handleTabChange('Requests')}
+                            >
+                                <Text style={styles.tabText}>Requests</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {activeTab === 'Options' && (
+                            <View style={styles.optionsContainer}>
+                                <View style={styles.switchContainer}>
+                                    <Text style={styles.switchLabel}>Public:</Text>
+                                    <Switch
+                                        value={isPrivate}
+                                        onValueChange={togglePrivate}
+                                    />
+                                </View>
+                                <View style={styles.switchContainer}>
+                                    <Text style={styles.switchLabel}>Visible:</Text>
+                                    <Switch
+                                        value={isVisible}
+                                        onValueChange={toggleVisible}
+                                    />
+                                </View>
+                                <Button
+                                    style={styles.cancelButton}
+                                    title="Go back"
+                                    onPress={() => setOptionsModal(false)}
+                                    color="lightgreen"
+                                />
+                            </View>
+                        )}
+                        {activeTab === 'Requests' && (
+                            <View style={styles.requestsContainer}>
+                                {/* Content for Requests tab */}
+                            </View>
+                        )}
+                    </View>
                 </Modal>
             </View>
             <View style={styles.footer}>
@@ -491,8 +562,8 @@ const styles = StyleSheet.create({
     modalContainer: {
         flex: 1,
         justifyContent: 'center',
-        padding: 16,
-        backgroundColor: 'black',
+        padding: 20,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
     },
     modalTitle: {
         fontSize: 24,
@@ -541,6 +612,62 @@ const styles = StyleSheet.create({
     ellipsisText: {
         fontSize: 24,
         color: 'white',
+    },
+    tabButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginBottom: 20,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'black',
+        zIndex: 1,
+    },
+    tabButton: {
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent', 
+    },
+    activeTab: {
+        borderBottomColor: 'white', 
+    },
+    tabText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    optionsContainer: {
+        backgroundColor: '#1a1a1a', 
+        padding: 20,
+        borderRadius: 10,
+        marginBottom: 20,
+    },
+    switchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 70,
+    },
+    switchLabel: {
+        color: 'white',
+        fontSize: 16,
+    },
+    switch: {
+        transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
+    },
+    cancelButton: {
+        backgroundColor: 'red',
+        paddingVertical: 12,
+        borderRadius: 10,
+        width: '100%',
+    },
+    buttonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        color: 'black',
     },
 });
 
