@@ -297,7 +297,7 @@ function GroupProfile({ route, navigation }) {
         <>
             <View style={styles.container}>
                 <FlatList
-                    data={posts}
+                    data={isPrivate && !isFollowing ? [] : posts}
                     renderItem={renderPost}
                     keyExtractor={(item) => item.id}
                     ListHeaderComponent={
@@ -345,6 +345,11 @@ function GroupProfile({ route, navigation }) {
                         </>
                     }
                     contentContainerStyle={{ paddingBottom: 100 }} 
+                    ListEmptyComponent={
+                        <Text style={styles.noPostsText}>
+                            {isPrivate && !isFollowing ? 'This group is private.' : 'No posts yet.'}
+                        </Text>
+                    }
                 />
                 <Modal visible={isModalVisible} animationType="slide">
                     <View style={styles.modalContainer}>
@@ -668,6 +673,16 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textAlign: 'center',
         color: 'black',
+    },
+    noPostsText: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginVertical: 20,
+        backgroundColor: 'black',
+        padding: 15,
+        borderRadius: 10,
     },
 });
 

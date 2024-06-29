@@ -188,7 +188,7 @@ function Search({ navigation }) {
                     renderItem={({ item }) => (
                         <View style={styles.postContainer}>
                             <View style={styles.postHeader}>
-                            <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: item.groupId, userId: user.uid })}>
+                            <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: item.groupId, userId: user.uid, name: name})}>
                                 <View style={styles.groupInfo}>
                                     <Image source={{ uri: item.groupProfileImage }} style={styles.groupProfileImage} />
                                     <Text style={styles.groupName}>{item.groupName}</Text>
