@@ -28,6 +28,7 @@ function GroupProfile({ route, navigation }) {
     const [activeTab, setActiveTab] = useState('Options'); 
     const [isPrivate, setIsPrivate] = useState(true); 
     const [isVisible, setIsVisible] = useState(true); 
+    const [requestd, setRequested] = useState(false);
 
     useEffect(() => {
         const fetchGroupData = async () => {
@@ -36,6 +37,7 @@ function GroupProfile({ route, navigation }) {
                 if (groupDoc.exists) {
                     setGroup(groupDoc.data());
                     setIsAdmin(groupDoc.data().admin === name);
+                    setIsPrivate(!groupDoc.data().public)
                 }
             } catch (error) {
                 console.error('Error fetching group data:', error);
@@ -75,9 +77,29 @@ function GroupProfile({ route, navigation }) {
             }
         };
 
+        const checkIfRequested = async () => {
+            try {
+                const requestRef = await firestore()
+                    .collection('groups')
+                    .doc(groupId)
+                    .collection('requests')
+                    .doc(userId)
+                    .get();
+        
+                if (requestRef.exists) {
+                    setRequested(true); 
+                } else {
+                    setRequested(false);
+                }
+            } catch (error) {
+                console.error('Error checking if requested:', error);
+            }
+        };
+
         if (userId) {
             fetchProfileImage(userId);
             checkIfFollowing();
+            checkIfRequested();
         }
         fetchGroupData();
         fetchPosts();
@@ -127,25 +149,33 @@ function GroupProfile({ route, navigation }) {
         try {
             const groupRef = firestore().collection('groups').doc(groupId);
             const userRef = firestore().collection('users').doc(userId).collection('joinedGroups').doc(groupId);
-
-            await firestore().runTransaction(async (transaction) => {
-                const groupDoc = await transaction.get(groupRef);
-                const userJoinedGroupDoc = await transaction.get(userRef);
-
-                if (userJoinedGroupDoc.exists) {
-                    transaction.delete(userRef);
-                    transaction.update(groupRef, { followers: firestore.FieldValue.increment(-1) });
-                } else {
-                    transaction.set(userRef, { rightToPost: 'No' });
-                    transaction.update(groupRef, { followers: firestore.FieldValue.increment(1) });
-                }
-            });
-
-            setIsFollowing(!isFollowing);
-            setGroup((prevGroup) => ({
-                ...prevGroup,
-                followers: isFollowing ? prevGroup.followers - 1 : prevGroup.followers + 1,
-            }));
+    
+            if (isPrivate && !isFollowing) {
+                await groupRef.collection('requests').doc(userId).set({
+                    profileImage: profileImage || defaultpfp,
+                    name: name,
+                });
+                setRequested(true);
+            } else {
+                await firestore().runTransaction(async (transaction) => {
+                    const groupDoc = await transaction.get(groupRef);
+                    const userJoinedGroupDoc = await transaction.get(userRef);
+    
+                    if (userJoinedGroupDoc.exists) {
+                        transaction.delete(userRef);
+                        transaction.update(groupRef, { followers: firestore.FieldValue.increment(-1) });
+                    } else {
+                        transaction.set(userRef, { rightToPost: 'No' });
+                        transaction.update(groupRef, { followers: firestore.FieldValue.increment(1) });
+                    }
+                });
+    
+                setIsFollowing(!isFollowing);
+                setGroup((prevGroup) => ({
+                    ...prevGroup,
+                    followers: isFollowing ? prevGroup.followers - 1 : prevGroup.followers + 1,
+                }));
+            }
         } catch (error) {
             console.error('Error toggling follow status:', error);
         }
@@ -327,11 +357,13 @@ function GroupProfile({ route, navigation }) {
                                 style={[
                                     styles.followButton,
                                     isFollowing ? styles.followingButton : styles.notFollowingButton,
+                                    requestd && !isFollowing && { backgroundColor: 'gray' },
                                 ]}
                                 onPress={handleFollowToggle}
+                                disabled={requestd} // Disable button if already requested
                             >
                                 <Text style={styles.followButtonText}>
-                                    {isFollowing ? 'Following' : 'Follow'}
+                                    {requestd ? 'Requested' : isFollowing ? 'Following' : 'Follow'}
                                 </Text>
                             </TouchableOpacity>
                             {isAdmin && (
