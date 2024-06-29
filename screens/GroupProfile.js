@@ -150,13 +150,8 @@ function GroupProfile({ route, navigation }) {
             const groupRef = firestore().collection('groups').doc(groupId);
             const userRef = firestore().collection('users').doc(userId).collection('joinedGroups').doc(groupId);
     
-            if (isPrivate && !isFollowing) {
-                await groupRef.collection('requests').doc(userId).set({
-                    profileImage: profileImage || defaultpfp,
-                    name: name,
-                });
-                setRequested(true);
-            } else {
+            if (!isPrivate) {
+                // Group is public, toggle following directly
                 await firestore().runTransaction(async (transaction) => {
                     const groupDoc = await transaction.get(groupRef);
                     const userJoinedGroupDoc = await transaction.get(userRef);
@@ -175,6 +170,20 @@ function GroupProfile({ route, navigation }) {
                     ...prevGroup,
                     followers: isFollowing ? prevGroup.followers - 1 : prevGroup.followers + 1,
                 }));
+            } else {
+                // Group is private
+                if (requestd) {
+                    // If already requested, remove the request
+                    await groupRef.collection('requests').doc(userId).delete();
+                    setRequested(false);
+                } else {
+                    // Otherwise, create a request
+                    await groupRef.collection('requests').doc(userId).set({
+                        profileImage: profileImage || defaultpfp,
+                        name: name,
+                    });
+                    setRequested(true);
+                }
             }
         } catch (error) {
             console.error('Error toggling follow status:', error);
@@ -360,7 +369,6 @@ function GroupProfile({ route, navigation }) {
                                     requestd && !isFollowing && { backgroundColor: 'gray' },
                                 ]}
                                 onPress={handleFollowToggle}
-                                disabled={requestd} // Disable button if already requested
                             >
                                 <Text style={styles.followButtonText}>
                                     {requestd ? 'Requested' : isFollowing ? 'Following' : 'Follow'}
