@@ -29,6 +29,7 @@ function GroupProfile({ route, navigation }) {
     const [isPrivate, setIsPrivate] = useState(true); 
     const [isVisible, setIsVisible] = useState(true); 
     const [requestd, setRequested] = useState(false);
+    const [isPublic, setIsPublic] = useState(null);
 
     useEffect(() => {
         const fetchGroupData = async () => {
@@ -38,6 +39,7 @@ function GroupProfile({ route, navigation }) {
                     setGroup(groupDoc.data());
                     setIsAdmin(groupDoc.data().admin === name);
                     setIsPrivate(!groupDoc.data().public)
+                    setIsPublic(groupDoc.data().public)
                 }
             } catch (error) {
                 console.error('Error fetching group data:', error);
@@ -151,7 +153,6 @@ function GroupProfile({ route, navigation }) {
             const userRef = firestore().collection('users').doc(userId).collection('joinedGroups').doc(groupId);
     
             if (!isPrivate) {
-                // Group is public, toggle following directly
                 await firestore().runTransaction(async (transaction) => {
                     const groupDoc = await transaction.get(groupRef);
                     const userJoinedGroupDoc = await transaction.get(userRef);
@@ -171,13 +172,10 @@ function GroupProfile({ route, navigation }) {
                     followers: isFollowing ? prevGroup.followers - 1 : prevGroup.followers + 1,
                 }));
             } else {
-                // Group is private
                 if (requestd) {
-                    // If already requested, remove the request
                     await groupRef.collection('requests').doc(userId).delete();
                     setRequested(false);
                 } else {
-                    // Otherwise, create a request
                     await groupRef.collection('requests').doc(userId).set({
                         profileImage: profileImage || defaultpfp,
                         name: name,
@@ -283,9 +281,9 @@ function GroupProfile({ route, navigation }) {
     const togglePrivate = async () => {
         try {
             await firestore().collection('groups').doc(groupId).update({
-                public: !isPrivate,
+                public: !isPublic,
             });
-            setIsPrivate(!isPrivate);
+            setIsPublic(!isPublic);
         } catch (error) {
             console.error('Error updating private status:', error);
         }
@@ -445,7 +443,7 @@ function GroupProfile({ route, navigation }) {
                                 <View style={styles.switchContainer}>
                                     <Text style={styles.switchLabel}>Public:</Text>
                                     <Switch
-                                        value={isPrivate}
+                                        value={isPublic}
                                         onValueChange={togglePrivate}
                                     />
                                 </View>
