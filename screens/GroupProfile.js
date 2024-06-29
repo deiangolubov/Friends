@@ -24,11 +24,11 @@ function GroupProfile({ route, navigation }) {
     const [posts, setPosts] = useState([]);
     const [numberOfPosts, setNumberOfPosts] = useState(0);
     const [isAdmin, setIsAdmin] = useState(false);
-    
     const [activeTab, setActiveTab] = useState('Options'); 
     const [isVisible, setIsVisible] = useState(true); 
     const [requestd, setRequested] = useState(false);
     const [isPublic, setIsPublic] = useState(null);
+    const [requests, setRequests] = useState([]);
 
     useEffect(() => {
         const fetchGroupData = async () => {
@@ -38,6 +38,7 @@ function GroupProfile({ route, navigation }) {
                     setGroup(groupDoc.data());
                     setIsAdmin(groupDoc.data().admin === name);
                     setIsPublic(groupDoc.data().public)
+                    fetchRequests();
                 }
             } catch (error) {
                 console.error('Error fetching group data:', error);
@@ -145,6 +146,25 @@ function GroupProfile({ route, navigation }) {
         }
     };
 
+    const fetchRequests = async () => {
+        try {
+            const requestsSnapshot = await firestore()
+                .collection('groups')
+                .doc(groupId)
+                .collection('requests')
+                .get();
+    
+            const requestsData = requestsSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+    
+            setRequests(requestsData);
+        } catch (error) {
+            console.error('Error fetching requests:', error);
+        }
+    };
+
     const handleFollowToggle = async () => {
         try {
             const groupRef = firestore().collection('groups').doc(groupId);
@@ -158,27 +178,41 @@ function GroupProfile({ route, navigation }) {
                     if (userJoinedGroupDoc.exists) {
                         transaction.delete(userRef);
                         transaction.update(groupRef, { followers: firestore.FieldValue.increment(-1) });
+                        setIsFollowing(false); // Setează starea "following" pe false
                     } else {
                         transaction.set(userRef, { rightToPost: 'No' });
                         transaction.update(groupRef, { followers: firestore.FieldValue.increment(1) });
+                        setIsFollowing(true); // Setează starea "following" pe true
                     }
                 });
     
-                setIsFollowing(!isFollowing);
                 setGroup((prevGroup) => ({
                     ...prevGroup,
                     followers: isFollowing ? prevGroup.followers - 1 : prevGroup.followers + 1,
                 }));
             } else {
-                if (requestd) {
-                    await groupRef.collection('requests').doc(userId).delete();
-                    setRequested(false);
-                } else {
-                    await groupRef.collection('requests').doc(userId).set({
-                        profileImage: profileImage || defaultpfp,
-                        name: name,
+                if (isFollowing) {
+                    await firestore().runTransaction(async (transaction) => {
+                        const groupDoc = await transaction.get(groupRef);
+                        const userJoinedGroupDoc = await transaction.get(userRef);
+    
+                        if (userJoinedGroupDoc.exists) {
+                            transaction.delete(userRef);
+                            transaction.update(groupRef, { followers: firestore.FieldValue.increment(-1) });
+                            setIsFollowing(false); 
+                        }
                     });
-                    setRequested(true);
+                } else {
+                    if (requestd) {
+                        await groupRef.collection('requests').doc(userId).delete();
+                        setRequested(false);
+                    } else {
+                        await groupRef.collection('requests').doc(userId).set({
+                            profileImage: profileImage || defaultpfp,
+                            name: name,
+                        });
+                        setRequested(true);
+                    }
                 }
             }
         } catch (error) {
@@ -328,6 +362,74 @@ function GroupProfile({ route, navigation }) {
         );
     };
 
+    const renderRequestItem = ({ item }) => {
+        return (
+            <View style={styles.requestItem}>
+                <Image
+                    source={{ uri: item.profileImage }}
+                    style={styles.requestProfileImage}
+                />
+                <Text style={styles.requestText}>{item.name}</Text>
+                <View style={styles.requestButtons}>
+                    <TouchableOpacity
+                        style={[styles.requestButton, styles.acceptButton]}
+                        onPress={() => handleAcceptRequest(item.name, item.id)}
+                    >
+                        <Text style={styles.requestButtonText}>Accept</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.requestButton, styles.declineButton]}
+                        onPress={() => handleDeclineRequest(item.id)}
+                    >
+                        <Text style={styles.requestButtonText}>Decline</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    };
+
+    const handleAcceptRequest = async (username, requestId) => {
+        try {
+            const groupRef = firestore().collection('groups').doc(groupId);
+            const usersRef = firestore().collection('users');
+    
+            const querySnapshot = await usersRef.where('username', '==', username).get();
+    
+            const userDoc = querySnapshot.docs[0];
+            const userId = userDoc.id;
+    
+            await usersRef.doc(userId).collection('joinedGroups').doc(groupId).set({
+                groupId: groupId,
+                rightToPost: 'No'
+            });
+    
+            await groupRef.update({
+                followers: firestore.FieldValue.increment(1)
+            });
+    
+            await groupRef.collection('requests').doc(requestId).delete();
+
+            fetchRequests();
+        } catch (error) {
+            console.error('Error accepting request:', error);
+        }
+    };
+
+    const handleDeclineRequest = async (requestId) => {
+        try {
+            await firestore()
+                .collection('groups')
+                .doc(groupId)
+                .collection('requests')
+                .doc(requestId)
+                .delete();
+
+            fetchRequests();
+        } catch (error) {
+            console.error('Error declining request:', error);
+        }
+    };
+
     return (
         <>
             <View style={styles.container}>
@@ -462,7 +564,13 @@ function GroupProfile({ route, navigation }) {
                         )}
                         {activeTab === 'Requests' && (
                             <View style={styles.requestsContainer}>
-                                {/* Content for Requests tab */}
+                                <Text style={styles.requestsTitle}>Requests to join the group</Text>
+                                <FlatList
+                                    data={requests}
+                                    renderItem={renderRequestItem}
+                                    keyExtractor={(item) => item.id}
+                                    ListEmptyComponent={<Text style={styles.noRequestsText}>No pending requests</Text>}
+                                />
                             </View>
                         )}
                     </View>
@@ -719,6 +827,61 @@ const styles = StyleSheet.create({
         backgroundColor: 'black',
         padding: 15,
         borderRadius: 10,
+    },
+    requestsContainer: {
+        backgroundColor: '#1a1a1a',
+        padding: 20,
+        borderRadius: 10,
+        marginBottom: 20,
+    },
+    requestsTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 16,
+        color: 'white',
+    },
+    noRequestsText: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginVertical: 20,
+    },
+    requestItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    requestProfileImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 8,
+    },
+    requestText: {
+        flex: 1,
+        color: 'white',
+        marginLeft: 8,
+    },
+    requestButtons: {
+        flexDirection: 'row',
+    },
+    requestButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 16,
+        marginLeft: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    acceptButton: {
+        backgroundColor: 'lightgreen',
+    },
+    declineButton: {
+        backgroundColor: 'red',
+    },
+    requestButtonText: {
+        color: 'black',
     },
 });
 
