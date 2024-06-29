@@ -26,7 +26,6 @@ function GroupProfile({ route, navigation }) {
     const [isAdmin, setIsAdmin] = useState(false);
     
     const [activeTab, setActiveTab] = useState('Options'); 
-    const [isPrivate, setIsPrivate] = useState(true); 
     const [isVisible, setIsVisible] = useState(true); 
     const [requestd, setRequested] = useState(false);
     const [isPublic, setIsPublic] = useState(null);
@@ -38,7 +37,6 @@ function GroupProfile({ route, navigation }) {
                 if (groupDoc.exists) {
                     setGroup(groupDoc.data());
                     setIsAdmin(groupDoc.data().admin === name);
-                    setIsPrivate(!groupDoc.data().public)
                     setIsPublic(groupDoc.data().public)
                 }
             } catch (error) {
@@ -152,7 +150,7 @@ function GroupProfile({ route, navigation }) {
             const groupRef = firestore().collection('groups').doc(groupId);
             const userRef = firestore().collection('users').doc(userId).collection('joinedGroups').doc(groupId);
     
-            if (!isPrivate) {
+            if (isPublic) {
                 await firestore().runTransaction(async (transaction) => {
                     const groupDoc = await transaction.get(groupRef);
                     const userJoinedGroupDoc = await transaction.get(userRef);
@@ -334,7 +332,7 @@ function GroupProfile({ route, navigation }) {
         <>
             <View style={styles.container}>
                 <FlatList
-                    data={isPrivate && !isFollowing ? [] : posts}
+                    data={!isPublic && !isFollowing ? [] : posts}
                     renderItem={renderPost}
                     keyExtractor={(item) => item.id}
                     ListHeaderComponent={
@@ -385,7 +383,7 @@ function GroupProfile({ route, navigation }) {
                     contentContainerStyle={{ paddingBottom: 100 }} 
                     ListEmptyComponent={
                         <Text style={styles.noPostsText}>
-                            {isPrivate && !isFollowing ? 'This group is private.' : 'No posts yet.'}
+                            {!isPublic && !isFollowing ? 'This group is private.' : 'No posts yet.'}
                         </Text>
                     }
                 />
