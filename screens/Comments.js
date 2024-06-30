@@ -34,12 +34,12 @@ function CommentsScreen({ route, navigation }) {
 
     const handleAddComment = async () => {
         if (commentText.trim() === '') return;
-
+    
         try {
             const userDoc = await firestore().collection('users').doc(userId).get();
             const username = userDoc.data().username;
             const userProfileImage = userDoc.data().profileImage;
-
+    
             await firestore().collection('groups').doc(groupId).collection('posts').doc(postId).collection('comments').add({
                 text: commentText,
                 authorId: userId,
@@ -47,7 +47,32 @@ function CommentsScreen({ route, navigation }) {
                 authorProfileImage: userProfileImage,
                 timestamp: firestore.FieldValue.serverTimestamp(),
             });
-
+    
+            const postDoc = await firestore().collection('groups').doc(groupId).collection('posts').doc(postId).get();
+            if (!postDoc.exists) {
+                console.error('Post not found');
+                return;
+            }
+            const postData = postDoc.data();
+            
+            const postAuthorQuerySnapshot = await firestore().collection('users').where('username', '==', postData.authorId).get();
+            if (postAuthorQuerySnapshot.empty) {
+                console.error('Post author user not found');
+                return;
+            }
+            const postAuthorDoc = postAuthorQuerySnapshot.docs[0];
+            const notificationsRef = postAuthorDoc.ref.collection('notifications');
+    
+            await notificationsRef.add({
+                photoUrl: userProfileImage,
+                name: username,
+                type: 'commented',
+                postId: postId,
+                group_name: groupId, 
+                postImage: postData.imageUrl,
+                timestamp: firestore.FieldValue.serverTimestamp()
+            });
+    
             setCommentText('');
             fetchComments();
         } catch (error) {
