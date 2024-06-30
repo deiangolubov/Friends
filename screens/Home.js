@@ -8,7 +8,6 @@ import homeImg from '../img/currentHome.png';
 import searchImg from '../img/searchImg2.png';
 import defaultpfp from '../img/defaultpfp.png';
 import chat from '../img/chat.png';
-import hasNotification from '../img/chatOn.png';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -20,7 +19,6 @@ function Home({ navigation }) {
     const [userGroupsInfo, setUserGroupsInfo] = useState([]);
     const [posts, setPosts] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
-    const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -32,28 +30,6 @@ function Home({ navigation }) {
 
         return unsubscribe;
     }, []);
-
-    useEffect(() => {
-        if (user) {
-            const fetchNotifications = async () => {
-                try {
-                    const notificationsSnapshot = await firestore()
-                        .collection('users')
-                        .doc(user.uid)
-                        .collection('notifications')
-                        .where('viewed', '==', false)
-                        .get();
-                    
-                    const hasUnread = !notificationsSnapshot.empty;
-                    setHasUnreadNotifications(hasUnread);
-                } catch (error) {
-                    console.error('Error fetching notifications:', error);
-                }
-            };
-
-            fetchNotifications();
-        }
-    }, [user]);
 
     const fetchUserData = async (uid) => {
         try {
@@ -246,7 +222,7 @@ function Home({ navigation }) {
                     <Image source={searchImg} style={styles.searchIconImage} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToChat} style={styles.iconContainer}>
-                    <Image source={hasUnreadNotifications ? hasNotification : chat} style={styles.searchIconImage} />
+                    <Image source={chat} style={styles.searchIconImage} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToProfile} style={styles.iconContainer}>
                     {profileImage ? (
