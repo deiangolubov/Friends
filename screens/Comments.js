@@ -70,7 +70,8 @@ function CommentsScreen({ route, navigation }) {
                 postId: postId,
                 group_name: groupId, 
                 postImage: postData.imageUrl,
-                timestamp: firestore.FieldValue.serverTimestamp()
+                timestamp: firestore.FieldValue.serverTimestamp(),
+                viewed: "false",
             });
     
             setCommentText('');

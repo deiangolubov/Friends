@@ -98,16 +98,16 @@ function Search({ navigation }) {
 
     const handleLikeToggle = async (post) => {
         if (!user) return;
-
+    
         const postRef = firestore().collection('groups').doc(post.groupId).collection('posts').doc(post.id);
         const postDoc = await postRef.get();
         const postData = postDoc.data();
-
+    
         if (!postData) return;
-
+    
         let newLikes = postData.likes;
         let newLikers = [...postData.likers];
-
+    
         if (newLikers.includes(user.uid)) {
             newLikers = newLikers.filter(uid => uid !== user.uid);
             newLikes -= 1;
@@ -115,12 +115,39 @@ function Search({ navigation }) {
             newLikers.push(user.uid);
             newLikes += 1;
         }
-
+    
         await postRef.update({
             likes: newLikes,
             likers: newLikers
         });
-
+    
+        const authorQuerySnapshot = await firestore().collection('users').where('username', '==', postData.authorId).get();
+        if (authorQuerySnapshot.empty) {
+            console.error('Author user not found');
+            return;
+        }
+        const authorDoc = authorQuerySnapshot.docs[0];
+        const notificationsRef = authorDoc.ref.collection('notifications');
+    
+        if (!newLikers.includes(user.uid)) { 
+            const existingNotificationsSnapshot = await notificationsRef
+                .where('name', '==', name)
+                .where('postId', '==', post.id)
+                .get();
+    
+            if (existingNotificationsSnapshot.empty) {
+                await notificationsRef.add({
+                    photoUrl: profileImage,
+                    name: name,
+                    type: 'liked',
+                    postId: post.id,
+                    group_name: post.groupName,
+                    postImage: postData.imageUrl,
+                    timestamp: firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+    
         setPosts(posts.map(p => {
             if (p.id === post.id) {
                 return {
