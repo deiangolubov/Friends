@@ -8,6 +8,7 @@ import homeImg from '../img/currentHome.png';
 import searchImg from '../img/searchImg2.png';
 import defaultpfp from '../img/defaultpfp.png';
 import chat from '../img/chat.png';
+import hasNotification from '../img/chatOn.png';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -18,7 +19,8 @@ function Home({ navigation }) {
     const [groupCount, setGroupCount] = useState(0);
     const [userGroupsInfo, setUserGroupsInfo] = useState([]);
     const [posts, setPosts] = useState([]);
-    const [refreshing, setRefreshing] = useState(false); 
+    const [refreshing, setRefreshing] = useState(false);
+    const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth().onAuthStateChanged(user => {
@@ -31,28 +33,50 @@ function Home({ navigation }) {
         return unsubscribe;
     }, []);
 
+    useEffect(() => {
+        if (user) {
+            const fetchNotifications = async () => {
+                try {
+                    const notificationsSnapshot = await firestore()
+                        .collection('users')
+                        .doc(user.uid)
+                        .collection('notifications')
+                        .where('viewed', '==', false)
+                        .get();
+                    
+                    const hasUnread = !notificationsSnapshot.empty;
+                    setHasUnreadNotifications(hasUnread);
+                } catch (error) {
+                    console.error('Error fetching notifications:', error);
+                }
+            };
+
+            fetchNotifications();
+        }
+    }, [user]);
+
     const fetchUserData = async (uid) => {
         try {
             const userDoc = await firestore().collection('users').doc(uid).get();
             const userData = userDoc.data();
-    
+
             if (userData) {
                 setName(userData.username);
                 setProfileImage(userData.profileImage);
             }
-    
+
             const joinedGroupsSnapshot = await firestore().collection('users').doc(uid).collection('joinedGroups').get();
             const groups = joinedGroupsSnapshot.docs.map(doc => doc.id);
-    
+
             const groupsPromises = groups.map(async (groupId) => {
                 const groupDoc = await firestore().collection('groups').doc(groupId).get();
                 return { id: groupId, ...groupDoc.data() };
             });
-    
+
             const groupsData = await Promise.all(groupsPromises);
             setUserGroupsInfo(groupsData);
             setGroupCount(groupsData.length);
-    
+
             const postsPromises = groupsData.map(async (group) => {
                 const postsSnapshot = await firestore().collection('groups').doc(group.id).collection('posts').get();
                 const groupPosts = postsSnapshot.docs.map(doc => ({
@@ -69,14 +93,14 @@ function Home({ navigation }) {
                 }));
                 return groupPosts;
             });
-    
+
             const allPosts = await Promise.all(postsPromises);
             const flattenedPosts = allPosts.flat();
-    
+
             flattenedPosts.sort((a, b) => b.timestamp - a.timestamp);
-    
+
             setPosts(flattenedPosts);
-    
+
         } catch (error) {
             console.error('Error fetching user data:', error);
         }
@@ -84,10 +108,9 @@ function Home({ navigation }) {
 
     const onRefresh = React.useCallback(async () => {
         setRefreshing(true);
-        await fetchUserData(user.uid); 
+        await fetchUserData(user.uid);
         setRefreshing(false);
     }, [user]);
-
 
     const goToSearch = () => {
         navigation.navigate('Search');
@@ -103,16 +126,16 @@ function Home({ navigation }) {
 
     const handleLikeToggle = async (post) => {
         if (!user) return;
-    
+
         const postRef = firestore().collection('groups').doc(post.groupId).collection('posts').doc(post.id);
         const postDoc = await postRef.get();
         const postData = postDoc.data();
-    
+
         if (!postData) return;
-    
+
         let newLikes = postData.likes;
         let newLikers = [...postData.likers];
-    
+
         if (newLikers.includes(user.uid)) {
             newLikers = newLikers.filter(uid => uid !== user.uid);
             newLikes -= 1;
@@ -120,26 +143,26 @@ function Home({ navigation }) {
             newLikers.push(user.uid);
             newLikes += 1;
         }
-    
+
         await postRef.update({
             likes: newLikes,
             likers: newLikers
         });
-    
+
         const authorQuerySnapshot = await firestore().collection('users').where('username', '==', postData.authorId).get();
         if (authorQuerySnapshot.empty) {
             console.error('Author user not found');
             return;
         }
-        const authorDoc = authorQuerySnapshot.docs[0]; 
+        const authorDoc = authorQuerySnapshot.docs[0];
         const notificationsRef = authorDoc.ref.collection('notifications');
-    
+
         if (!newLikers.includes(user.uid)) {
             const existingNotificationsSnapshot = await notificationsRef
                 .where('name', '==', name)
                 .where('postId', '==', post.id)
                 .get();
-    
+
             if (existingNotificationsSnapshot.empty) {
                 await notificationsRef.add({
                     photoUrl: profileImage,
@@ -148,11 +171,12 @@ function Home({ navigation }) {
                     postId: post.id,
                     group_name: post.groupName,
                     postImage: postData.imageUrl,
-                    timestamp: firestore.FieldValue.serverTimestamp()
+                    timestamp: firestore.FieldValue.serverTimestamp(),
+                    viewed: false,
                 });
             }
         }
-    
+
         setPosts(posts.map(p => {
             if (p.id === post.id) {
                 return {
@@ -164,7 +188,7 @@ function Home({ navigation }) {
             return p;
         }));
     };
-    
+
     const goToComments = (postId, groupId) => {
         navigation.navigate('Comments', {
             postId,
@@ -181,21 +205,21 @@ function Home({ navigation }) {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        colors={['white']} 
-                        progressBackgroundColor="black" 
+                        colors={['white']}
+                        progressBackgroundColor="black"
                     />
                 }
             >
                 {posts.map((post, index) => (
                     <View key={index} style={styles.postContainer}>
                         <View style={styles.postHeader}>
-                        <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: post.groupId, userId: user.uid, name: name})}>
-                            <View style={styles.groupInfo}>
+                            <TouchableOpacity onPress={() => navigation.navigate('GroupProfile', { groupId: post.groupId, userId: user.uid, name: name })}>
+                                <View style={styles.groupInfo}>
                                     <Image source={{ uri: post.groupProfileImage }} style={styles.groupProfileImage} />
                                     <Text style={styles.groupName}>{post.groupName}</Text>
-                            </View>
-                        </TouchableOpacity>
-                        <Text style={styles.postAuthor}>Posted by {post.authorId}</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <Text style={styles.postAuthor}>Posted by {post.authorId}</Text>
                         </View>
                         {post.postImage && <Image source={{ uri: post.postImage }} style={styles.postImage} />}
                         <Text style={styles.postContent}>{post.content}</Text>
@@ -222,7 +246,7 @@ function Home({ navigation }) {
                     <Image source={searchImg} style={styles.searchIconImage} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToChat} style={styles.iconContainer}>
-                    <Image source={chat} style={styles.searchIconImage} />
+                    <Image source={hasUnreadNotifications ? hasNotification : chat} style={styles.searchIconImage} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={goToProfile} style={styles.iconContainer}>
                     {profileImage ? (

@@ -12,7 +12,7 @@ import defaultpfp from '../img/defaultpfp.png';
 const screenWidth = Dimensions.get('window').width;
 
 function GroupProfile({ route, navigation }) {
-    const { groupId, userId, name} = route.params;
+    const { groupId, userId, name, openRequestsModal} = route.params;
     const [group, setGroup] = useState(null);
     const [profileImage, setProfileImage] = useState(null);
     const [isFollowing, setIsFollowing] = useState(false);
@@ -24,7 +24,7 @@ function GroupProfile({ route, navigation }) {
     const [posts, setPosts] = useState([]);
     const [numberOfPosts, setNumberOfPosts] = useState(0);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [activeTab, setActiveTab] = useState('Options'); 
+    const [activeTab, setActiveTab] = useState('Requests'); 
     const [isVisible, setIsVisible] = useState(true); 
     const [requestd, setRequested] = useState(false);
     const [isPublic, setIsPublic] = useState(null);
@@ -104,7 +104,12 @@ function GroupProfile({ route, navigation }) {
         }
         fetchGroupData();
         fetchPosts();
-    }, [groupId, userId, name]);
+
+        if (openRequestsModal) {
+            setOptionsModal(true);
+        }
+
+    }, [groupId, userId, name, openRequestsModal]);
 
     const checkIfLiked = async (postId) => {
         try {
@@ -193,8 +198,10 @@ function GroupProfile({ route, navigation }) {
                             photoUrl: profileImage || defaultpfp,
                             name: name,
                             group_name: group.name,
+                            group_photo: group.profileImage,
                             type: 'followed',
-                            timestamp: firestore.FieldValue.serverTimestamp()
+                            timestamp: firestore.FieldValue.serverTimestamp(),
+                            viewed: false,
                         });
                     }
                 });
@@ -229,8 +236,11 @@ function GroupProfile({ route, navigation }) {
                             photoUrl: profileImage || defaultpfp,
                             name: name,
                             group_name: group.name,
+                            group_id: groupId,
+                            group_photo: group.profileImage,
                             type: 'requested',
-                            timestamp: firestore.FieldValue.serverTimestamp()
+                            timestamp: firestore.FieldValue.serverTimestamp(),
+                            viewed: false,
                         });
                     }
                 }
@@ -304,7 +314,8 @@ function GroupProfile({ route, navigation }) {
                             postId: postId,
                             group_name: group.name,
                             postImage: postData.imageUrl,
-                            timestamp: firestore.FieldValue.serverTimestamp()
+                            timestamp: firestore.FieldValue.serverTimestamp(),
+                            viewed: false,
                         })
                     }
                 }
@@ -614,6 +625,12 @@ function GroupProfile({ route, navigation }) {
                                     renderItem={renderRequestItem}
                                     keyExtractor={(item) => item.id}
                                     ListEmptyComponent={<Text style={styles.noRequestsText}>No pending requests</Text>}
+                                />
+                                <Button
+                                    style={styles.cancelButton}
+                                    title="Go back"
+                                    onPress={() => setOptionsModal(false)}
+                                    color="lightgreen"
                                 />
                             </View>
                         )}
