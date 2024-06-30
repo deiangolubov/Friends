@@ -169,7 +169,13 @@ function GroupProfile({ route, navigation }) {
         try {
             const groupRef = firestore().collection('groups').doc(groupId);
             const userRef = firestore().collection('users').doc(userId).collection('joinedGroups').doc(groupId);
-    
+            
+            const groupDoc = await groupRef.get();
+            const adminName = groupDoc.data().admin;
+            const adminQuerySnapshot = await firestore().collection('users').where('username', '==', adminName).get();
+            const adminDoc = adminQuerySnapshot.docs[0]
+            const notificationsRef = adminDoc.ref.collection('notifications');
+
             if (isPublic) {
                 await firestore().runTransaction(async (transaction) => {
                     const groupDoc = await transaction.get(groupRef);
@@ -178,11 +184,18 @@ function GroupProfile({ route, navigation }) {
                     if (userJoinedGroupDoc.exists) {
                         transaction.delete(userRef);
                         transaction.update(groupRef, { followers: firestore.FieldValue.increment(-1) });
-                        setIsFollowing(false); // Setează starea "following" pe false
+                        setIsFollowing(false);
                     } else {
                         transaction.set(userRef, { rightToPost: 'No' });
                         transaction.update(groupRef, { followers: firestore.FieldValue.increment(1) });
-                        setIsFollowing(true); // Setează starea "following" pe true
+                        setIsFollowing(true); 
+                        transaction.set(notificationsRef.doc(), {
+                            photoUrl: profileImage || defaultpfp,
+                            name: name,
+                            group_name: group.name,
+                            type: 'followed',
+                            timestamp: firestore.FieldValue.serverTimestamp()
+                        });
                     }
                 });
     
@@ -212,6 +225,13 @@ function GroupProfile({ route, navigation }) {
                             name: name,
                         });
                         setRequested(true);
+                        await notificationsRef.add({
+                            photoUrl: profileImage || defaultpfp,
+                            name: name,
+                            group_name: group.name,
+                            type: 'requested',
+                            timestamp: firestore.FieldValue.serverTimestamp()
+                        });
                     }
                 }
             }
@@ -256,6 +276,7 @@ function GroupProfile({ route, navigation }) {
     const handleLikeToggle = async (postId, currentLikes, userHasLiked) => {
         try {
             const postRef = firestore().collection('groups').doc(groupId).collection('posts').doc(postId);
+
             await firestore().runTransaction(async (transaction) => {
                 const postDoc = await transaction.get(postRef);
                 const postData = postDoc.data();
@@ -264,6 +285,29 @@ function GroupProfile({ route, navigation }) {
                     : [...postData.likers, userId];
                 const newLikes = newLikers.length;
                 transaction.update(postRef, { likes: newLikes, likers: newLikers });
+
+                const authorQuerySnapshot = await firestore().collection('users').where('username', '==', postData.authorId).get();
+                const authorDoc = authorQuerySnapshot.docs[0];
+                const notificationsRef = authorDoc.ref.collection('notifications');
+
+                if (!userHasLiked) { 
+                    const existingNotificationsSnapshot = await notificationsRef
+                    .where('name', '==', name)
+                    .where('postId', '==', postId)
+                    .get();
+
+                    if(existingNotificationsSnapshot.empty){
+                        transaction.set(notificationsRef.doc(), {
+                            photoUrl: profileImage || defaultpfp,
+                            name: name,
+                            type: 'liked',
+                            postId: postId,
+                            group_name: group.name,
+                            postImage: postData.imageUrl,
+                            timestamp: firestore.FieldValue.serverTimestamp()
+                        })
+                    }
+                }
             });
 
             setPosts((prevPosts) =>
