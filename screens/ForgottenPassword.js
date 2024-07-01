@@ -1,53 +1,54 @@
 import React, { useState } from 'react';
-import { View, Text, Button, Image, StyleSheet, TextInput, TouchableOpacity, StatusBar} from 'react-native';
-
-import logo from '../img/logo.png'
+import { View, Text, Image, StyleSheet, TextInput, TouchableOpacity, StatusBar, Alert } from 'react-native';
+import auth from '@react-native-firebase/auth';
+import logo from '../img/logo.png';
 
 function ForgottenPassword({ navigation }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
 
-  const handleLogin = () => {
-    // Implement your login logic here
-    console.log('Username:', username);
-    console.log('Password:', password);
+  const handleSendEmail = async () => {
+    try {
+      await auth().sendPasswordResetEmail(email);
+      Alert.alert('An email has been sent to reset your password.');
+      setTimeout(() => {
+        navigation.navigate('Login'); // Navigate to the login page or any other page
+      }, 3000);
+    } catch (error) {
+      if (error.code === 'auth/invalid-email') {
+        Alert.alert('Invalid email address.');
+      } else if (error.code === 'auth/user-not-found') {
+        Alert.alert('No user found with the given email.');
+      } else {
+        Alert.alert('Error', 'Something went wrong. Please try again later.');
+      }
+    }
   };
 
-  const handleSignUp = () => {
-    navigation.navigate('Signup')
-  }
-
   return (
-    <>
     <View style={styles.bigcontainer}>
-    <Image source={logo} style={styles.logo}/>
-    <Text style={styles.loginText}>Forgoten password (TO DO)</Text>
+      <Image source={logo} style={styles.logo} />
+      <Text style={styles.loginText}>Forgotten Password</Text>
       <View style={styles.formContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Enter your username or phone number"
-          onChangeText={text => setUsername(text)}
-          value={username}
+          placeholder="Enter your email"
+          onChangeText={text => setEmail(text)}
+          value={email}
         />
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+        <TouchableOpacity style={styles.loginButton} onPress={handleSendEmail}>
           <Text style={styles.buttonText}>Send email</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.loginButton} onPress={handleSignUp}>
-          <Text style={styles.buttonText}>Send SMS</Text>
-        </TouchableOpacity>
       </View>
-      </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   logo: {
-    width: '100%', 
-    height: 96, 
+    width: '100%',
+    height: 96,
     resizeMode: 'contain',
     top: 0,
-    
   },
   bigcontainer: {
     flex: 1,
